@@ -25,6 +25,8 @@ const discardPile = document.getElementById('discard-pile');
 const deckPile = document.getElementById('deck-pile');
 const dropAreaMain = document.getElementById('drop-area-main');
 const myScoreEl = document.getElementById('my-score');
+const exposeZoneLeft = document.getElementById('expose-zone-left');
+const exposeZoneRight = document.getElementById('expose-zone-right');
 
 let myId = null;
 let selectedCards = new Set();
@@ -225,6 +227,53 @@ dropAreaMain.addEventListener('drop', (e) => {
     }
 });
 
+// Side Expose Zones Logic
+[exposeZoneLeft, exposeZoneRight].forEach(zone => {
+    zone.addEventListener('dragover', (e) => {
+        if (isMyTurn() && currentGameState.phase === 'action') {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        }
+    });
+
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+
+        const data = e.dataTransfer.getData('text/plain');
+        let cardIdx;
+
+        if (data === 'group') {
+            // If dragging a group (multiple selected), use the selected cards
+            const indices = Array.from(selectedCards);
+            const cardsInGroup = indices.map(i => myCards[i]);
+            if (validateMeld(cardsInGroup)) {
+                const serverMe = currentGameState.players.find(p => p.id === myId);
+                const serverIndices = mapLocalToSvrIdx(indices, myCards, serverMe.hand);
+                socket.emit('expose-meld', { cardIndexes: serverIndices });
+                selectedCards.clear();
+            }
+        } else {
+            cardIdx = parseInt(data);
+            if (!isNaN(cardIdx)) {
+                const card = myCards[cardIdx];
+                if (card && card.groupId) {
+                    const groupCards = myCards.filter(c => c.groupId === card.groupId);
+                    if (validateMeld(groupCards)) {
+                        const indices = myCards.map((c, i) => c.groupId === card.groupId ? i : -1).filter(i => i !== -1);
+                        const serverMe = currentGameState.players.find(p => p.id === myId);
+                        const serverIndices = mapLocalToSvrIdx(indices, myCards, serverMe.hand);
+                        socket.emit('expose-meld', { cardIndexes: serverIndices });
+                        selectedCards.clear();
+                    }
+                }
+            }
+        }
+    });
+});
+
 socket.on('join-success', (data) => {
     myId = data.playerId;
 });
@@ -350,6 +399,15 @@ function renderGameState(state) {
         } else if (selectedCards.size === 1) {
             gameLog.innerHTML += `<div class="hint" style="color:var(--accent-gold); font-weight:bold; padding: 5px 0;">💡 Click Discard Pile to discard.</div>`;
         }
+    }
+
+    // Display Side Expose Zones
+    if (myTurn && state.phase === 'action') {
+        exposeZoneLeft.classList.remove('hidden');
+        exposeZoneRight.classList.remove('hidden');
+    } else {
+        exposeZoneLeft.classList.add('hidden');
+        exposeZoneRight.classList.add('hidden');
     }
 
     gameLog.scrollTop = gameLog.scrollHeight;
