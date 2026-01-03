@@ -97,7 +97,28 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        // Handle disconnection logic (graceful timeout)
+        const playerIndex = game.players.findIndex(p => p.id === socket.id);
+        if (playerIndex !== -1) {
+            const player = game.players[playerIndex];
+            if (game.status === 'lobby') {
+                game.players.splice(playerIndex, 1);
+                console.log(`Player ${player.name} removed from lobby. Count: ${game.players.length}`);
+                io.emit('lobby-update', { players: game.players });
+            } else {
+                console.log(`Player ${player.name} disconnected during game.`);
+                // In a real game, we might wait for reconnect or end game
+                // For now, let's just log it.
+            }
+        }
+
+        // If all humans gone, reset game
+        const humanCount = game.players.filter(p => p.type === 'human').length;
+        if (humanCount === 0) {
+            console.log("No human players left. Resetting game session.");
+            game.players = [];
+            game.status = 'lobby';
+            io.emit('lobby-update', { players: [] });
+        }
     });
 });
 
