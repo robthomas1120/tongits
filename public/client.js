@@ -436,14 +436,20 @@ function updatePlayerSlot(slotId, player, isActive) {
             // Add click listener for Sapaw
             groupEl.addEventListener('click', () => {
                 if (selectedCards.size === 1 && currentGameState.phase === 'action' && currentGameState.players[currentGameState.turnIndex].id === myId) {
-                    const cardIndex = Array.from(selectedCards)[0];
-                    socket.emit('sapaw', {
-                        targetPlayerId: player.id,
-                        meldIndex: meldIndex,
-                        cardIndex: cardIndex
-                    });
-                    selectedCards.clear();
-                    renderHand(myCards);
+                    const localIdx = Array.from(selectedCards)[0];
+                    const selectedCard = myCards[localIdx];
+                    const serverMe = currentGameState.players.find(p => p.id === myId);
+                    const serverIdx = serverMe.hand.findIndex(c => c && c.rank === selectedCard.rank && c.suit === selectedCard.suit);
+
+                    if (serverIdx !== -1) {
+                        socket.emit('sapaw', {
+                            targetPlayerId: player.id,
+                            meldIndex: meldIndex,
+                            cardIndex: serverIdx
+                        });
+                        selectedCards.clear();
+                        renderHand(myCards);
+                    }
                 }
             });
 

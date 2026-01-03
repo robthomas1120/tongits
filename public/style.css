@@ -142,9 +142,8 @@ button:disabled {
     border-radius: 25px;
 }
 
-#player-bottom.active-turn {
-    background: rgba(255, 234, 0, 0.1);
-    box-shadow: 0 0 20px var(--accent-gold);
+.player-slot.active-turn {
+    background: rgba(255, 234, 0, 0.15);
     border: 3px solid var(--accent-gold);
 }
 
