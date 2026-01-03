@@ -43,6 +43,18 @@ class GameSession {
         return null;
     }
 
+    reset() {
+        this.players = [];
+        this.deck = new Deck();
+        this.discardPile = [];
+        this.turnIndex = 0;
+        this.dealerIndex = 0;
+        this.status = 'lobby';
+        this.sidePot = 0;
+        this.winnerOfPreviousHand = null;
+        this.logs = [];
+    }
+
     startRound() {
         if (this.players.length < 3) return false;
 
@@ -65,8 +77,13 @@ class GameSession {
         });
 
         // Determine dealer (rotating or winner)
+        // Determine dealer (rotating or winner)
         if (this.winnerOfPreviousHand !== null) {
             this.dealerIndex = this.players.findIndex(p => p.id === this.winnerOfPreviousHand);
+            // If previous winner is gone, fallback to random
+            if (this.dealerIndex === -1) {
+                this.dealerIndex = Math.floor(Math.random() * 3);
+            }
         } else {
             this.dealerIndex = Math.floor(Math.random() * 3);
         }
@@ -93,14 +110,12 @@ class GameSession {
             player.hand.push(card);
             this.phase = 'action';
             this.addLog(`${player.name} drew from stock.`);
-
-            if (this.deck.count === 0) {
-                this.addLog("Stock pile is empty. Round finishing...");
-                this.endRound(null, 'deck-empty');
-            }
+            return true;
+        } else {
+            this.addLog("Stock pile is empty. Round finishing...");
+            this.endRound(null, 'deck-empty');
             return true;
         }
-        return false;
     }
 
     drawFromDiscard(playerId, cardsToMeltIndexes) {

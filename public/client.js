@@ -35,6 +35,58 @@ let currentGameState = null;
 let sortMode = 'rank';
 let suggestionsEnabled = true;
 
+// Room ID Parsing
+const urlParams = new URLSearchParams(window.location.search);
+let roomId = urlParams.get('room');
+
+// If no room, show "Create Room" or auto-create default
+if (!roomId) {
+    // Optionally create a default room button or redirect
+    const createRoomBtn = document.createElement('button');
+    createRoomBtn.innerText = 'Create Private Lobby';
+    createRoomBtn.className = 'btn-secondary';
+    createRoomBtn.style.marginTop = '10px';
+    createRoomBtn.onclick = () => {
+        const newRoom = Math.random().toString(36).substring(2, 8);
+        window.location.search = `?room=${newRoom}`;
+    };
+    document.getElementById('join-section').appendChild(createRoomBtn);
+
+    // Default room behavior (optional, or force create)
+    // For now, if no room, we can stay in "null" room or auto-join "default"
+    // Let's force users to have a room for invites to work properly
+    // roomId = 'default';
+} else {
+    // Show Invite Link Button
+    const inviteBtn = document.createElement('button');
+    inviteBtn.innerText = 'Copy Invite Link';
+    inviteBtn.className = 'btn-small';
+    inviteBtn.style.position = 'absolute';
+    inviteBtn.style.top = '10px';
+    inviteBtn.style.right = '10px';
+    inviteBtn.onclick = () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            inviteBtn.innerText = 'Copied!';
+            setTimeout(() => inviteBtn.innerText = 'Copy Invite Link', 2000);
+        });
+    };
+    document.body.appendChild(inviteBtn);
+}
+
+// Join Room Logic
+socket.on('connect', () => {
+    if (roomId) {
+        socket.emit('join-room', roomId);
+    } else {
+        // If no room ID, we might need one. 
+        // Let's default to 'public' for users who just landed
+        // Or encourage them to click 'Create Private Lobby'
+        // For compatibility with previous logic:
+        roomId = 'public';
+        socket.emit('join-room', 'public');
+    }
+});
+
 // New State for Interactions
 let myCards = []; // { rank, suit, groupId }
 let groups = {}; // groupId -> { color }
@@ -829,31 +881,31 @@ function showDiscardHistory() {
     // Reset to chronological view
     isSortedBySuit = false;
     sortModeText.innerText = 'Chronological';
-    
+
     // Populate cards
     renderDiscardHistory();
-    
+
     // Show modal
     discardHistoryOverlay.classList.remove('hidden');
 }
 
 function renderDiscardHistory() {
     discardCardGrid.innerHTML = '';
-    
+
     let cardsToDisplay = [...currentGameState.discardPile];
-    
+
     if (isSortedBySuit) {
         // Sort by suit then rank
         const SUITS = ['♠', '♥', '♦', '♣'];
         const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-        
+
         cardsToDisplay.sort((a, b) => {
             const suitDiff = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
             if (suitDiff !== 0) return suitDiff;
             return RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank);
         });
     }
-    
+
     // Create card elements
     cardsToDisplay.forEach(card => {
         const cardEl = createCardElement(card);
