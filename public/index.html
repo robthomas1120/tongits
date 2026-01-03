@@ -50,6 +50,7 @@
                 <button id="discard-btn" disabled>Discard</button>
                 <div class="action-btns">
                     <button id="sort-btn">Sort: Rank</button>
+                    <button id="fight-btn" class="action-red" disabled>Fight</button>
                     <button id="group-btn">Group</button>
                     <button id="expose-btn" disabled>Expose</button>
                     <button id="suggest-btn">Sug: ON</button>
@@ -142,6 +143,26 @@
             </div>
         </div>
     </div>
+
+    <!-- Discard Pile History Modal -->
+    <div id="discard-history-overlay" class="discard-history-overlay hidden">
+        <div class="discard-history-modal">
+            <div class="modal-header">
+                <h3>Discard Pile History</h3>
+                <button id="close-history-btn" class="close-btn">✕</button>
+            </div>
+            <div class="modal-controls">
+                <button id="sort-toggle-btn" class="sort-toggle-btn">
+                    <span id="sort-mode-text">Chronological</span>
+                    <span class="toggle-icon">⇄</span>
+                </button>
+            </div>
+            <div id="discard-card-grid" class="discard-card-grid">
+                <!-- Cards will be populated here -->
+            </div>
+        </div>
+    </div>
+
     <script src="client.js"></script>
 </body>
 

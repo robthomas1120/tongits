@@ -570,48 +570,265 @@ button:disabled {
 /* Mobile & Landscape Overrides */
 @media screen and (max-width: 926px),
 screen and (max-height: 500px) {
+
+    /* Table and board adjustments */
     .table-felt {
         width: 100% !important;
-        height: 85% !important;
-        border-radius: 40px !important;
+        height: 94% !important;
+        border-radius: 25px !important;
+    }
+
+    /* Controls - ultra compact single row */
+    #controls {
+        padding: 4px 2px !important;
+        gap: 3px !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
     }
 
     #controls button {
-        padding: 8px 6px !important;
-        font-size: 0.75rem !important;
+        padding: 6px 8px !important;
+        font-size: 0.65rem !important;
+        min-width: 60px !important;
+        max-width: 80px !important;
+        flex: 0 0 auto !important;
+        border-radius: 5px !important;
+        white-space: nowrap !important;
+    }
+
+    #discard-btn {
         min-width: 65px !important;
-        flex: 1 1 23% !important;
     }
 
+    .action-btns {
+        display: flex !important;
+        gap: 3px !important;
+    }
+
+    /* Center board - optimized position */
     #center-board {
-        top: 42% !important;
-        transform: translate(-50%, -50%) scale(0.75) !important;
+        top: 28% !important;
+        transform: translate(-50%, -50%) scale(0.58) !important;
     }
 
+    .pot-area {
+        padding: 4px 12px !important;
+        min-width: 80px !important;
+    }
+
+    .pot-label {
+        font-size: 0.65rem !important;
+    }
+
+    #side-pot-count {
+        font-size: 1.1rem !important;
+    }
+
+    .piles-container {
+        gap: 12px !important;
+    }
+
+    .pile {
+        width: 50px !important;
+        height: 70px !important;
+    }
+
+    .pile-label {
+        font-size: 0.75rem !important;
+    }
+
+    #stock-count {
+        font-size: 0.9rem !important;
+    }
+
+    /* Cards - even smaller for mobile */
     .card {
-        width: 70px !important;
-        height: 105px !important;
-        margin-left: -35px !important;
+        width: 52px !important;
+        height: 78px !important;
+        margin-left: -26px !important;
     }
 
     .card:first-child {
-        margin-left: 0;
+        margin-left: 0 !important;
     }
 
     .card .rank {
-        font-size: 1rem !important;
+        font-size: 0.8rem !important;
+        top: 2px !important;
+        left: 4px !important;
     }
 
     .card .suit-main {
-        font-size: 2.2rem !important;
+        font-size: 1.8rem !important;
     }
 
+    /* Hand area - more compact */
     .hand-area {
-        height: 130px !important;
+        height: 95px !important;
+        padding: 0 5px !important;
     }
 
+    .hand-container {
+        gap: 5px !important;
+        padding-bottom: 5px !important;
+    }
+
+    /* Expose zones - minimal and subtle */
+    .expose-zone {
+        width: 60px !important;
+        height: 85px !important;
+        font-size: 0 !important;
+        letter-spacing: 0 !important;
+        border-width: 1px !important;
+        opacity: 0.5 !important;
+    }
+
+    .expose-zone span {
+        display: none !important;
+    }
+
+    .expose-zone.drag-over {
+        opacity: 1 !important;
+        font-size: 0.6rem !important;
+    }
+
+    .expose-zone.drag-over span {
+        display: block !important;
+    }
+
+    /* Bottom player positioning */
     #player-bottom {
-        bottom: 5px !important;
+        bottom: 0px !important;
+        width: 98% !important;
+    }
+
+    .player-info-footer {
+        margin-bottom: 0px !important;
+    }
+
+    .player-info-card-compact {
+        padding: 4px 12px !important;
+        gap: 8px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .points-badge {
+        font-size: 0.7rem !important;
+        padding: 2px 6px !important;
+    }
+
+    /* Opponent players - move to top area to maximize space */
+    #player-left {
+        left: 3px !important;
+        top: 20% !important;
+        transform: translateY(-50%) !important;
+    }
+
+    #player-right {
+        right: 3px !important;
+        top: 20% !important;
+        transform: translateY(-50%) !important;
+    }
+
+    .player-slot.opponent {
+        padding: 4px !important;
+    }
+
+    .player-info-card {
+        padding: 5px !important;
+        gap: 5px !important;
+    }
+
+    .player-info-card .avatar {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 0.9rem !important;
+    }
+
+    .player-info-card .details .name {
+        font-size: 0.7rem !important;
+    }
+
+    .player-info-card .details .chips {
+        font-size: 0.6rem !important;
+    }
+
+    /* Hand mini cards for opponents */
+    .hand-mini {
+        gap: 1px !important;
+    }
+
+    .card-mini-back {
+        width: 18px !important;
+        height: 28px !important;
+        font-size: 0.45rem !important;
+    }
+
+    /* Exposed melds - compact */
+    .exposed-melds {
+        gap: 4px !important;
+        margin-top: 2px !important;
+    }
+
+    .meld-group {
+        padding: 1px !important;
+    }
+
+    .meld-group .card-mini {
+        width: 26px !important;
+        height: 38px !important;
+        font-size: 0.6rem !important;
+        margin-left: -3px !important;
+    }
+
+    .meld-group .card-mini .rank {
+        font-size: 0.55rem !important;
+        top: 1px !important;
+        left: 2px !important;
+    }
+
+    .meld-group .card-mini .suit-main {
+        font-size: 0.9rem !important;
+    }
+
+    /* Game log - smaller and less intrusive */
+    #game-log-container {
+        top: 45px !important;
+        right: 3px !important;
+        width: 130px !important;
+        max-height: 70px !important;
+        font-size: 0.45rem !important;
+    }
+
+    #game-log {
+        font-size: 0.45rem !important;
+    }
+
+    /* Group indicator */
+    .group-indicator {
+        height: 2px !important;
+        bottom: 1px !important;
+    }
+
+    /* Results overlay */
+    .results-overlay {
+        padding: 12px !important;
+        max-width: 90% !important;
+    }
+
+    .results-overlay h2 {
+        font-size: 1.2rem !important;
+        margin-bottom: 10px !important;
+    }
+
+    .results-overlay button {
+        padding: 8px 18px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Exposed melds for bottom player */
+    #my-exposed-melds {
+        margin-top: 2px !important;
     }
 }
 
@@ -668,10 +885,16 @@ screen and (max-height: 500px) {
     transition: transform 0.2s;
 }
 
-.meld-group:hover {
+.meld-group:hover,
+.meld-group.drag-over {
     transform: scale(1.1);
     background: rgba(255, 234, 0, 0.2);
-    box-shadow: 0 0 10px var(--accent-gold);
+    box-shadow: 0 0 15px var(--accent-gold);
+}
+
+.meld-group.drag-over {
+    background: rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 20px #00e5ff;
 }
 
 .meld-group .card-mini:first-child {
@@ -726,4 +949,181 @@ screen and (max-height: 500px) {
 #game-log {
     font-size: 0.6rem;
     color: #ccc;
+}
+/* Discard History Modal */
+.discard-history-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 15000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.discard-history-modal {
+    background: linear-gradient(135deg, rgba(26, 94, 94, 0.95) 0%, rgba(15, 60, 60, 0.95) 100%);
+    border: 2px solid var(--accent-gold);
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(255, 234, 0, 0.3);
+}
+
+.modal-header h3 {
+    color: var(--accent-gold);
+    font-size: 1.4rem;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 1.5rem;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(255, 61, 0, 0.3);
+    border-color: #ff3d00;
+    transform: rotate(90deg);
+}
+
+.modal-controls {
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: center;
+}
+
+.sort-toggle-btn {
+    background: linear-gradient(135deg, rgba(255, 234, 0, 0.2) 0%, rgba(255, 215, 0, 0.1) 100%);
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 8px 20px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.sort-toggle-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 234, 0, 0.3) 0%, rgba(255, 215, 0, 0.2) 100%);
+    transform: scale(1.05);
+}
+
+.toggle-icon {
+    font-size: 1.2rem;
+}
+
+.discard-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    max-height: 50vh;
+}
+
+.discard-card-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.discard-card-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.discard-card-grid::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 10px;
+}
+
+.discard-card-grid .card {
+    width: 70px !important;
+    height: 100px !important;
+    margin: 0 !important;
+    cursor: default;
+    transition: transform 0.2s;
+}
+
+.discard-card-grid .card:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+/* Mobile adjustments for modal */
+@media screen and (max-width: 926px) {
+    .discard-history-modal {
+        max-width: 95%;
+        padding: 15px;
+    }
+
+    .modal-header h3 {
+        font-size: 1.1rem;
+    }
+
+    .close-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 1.2rem;
+    }
+
+    .sort-toggle-btn {
+        padding: 6px 15px;
+        font-size: 0.8rem;
+    }
+
+    .discard-card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+        gap: 8px;
+    }
+
+    .discard-card-grid .card {
+        width: 55px !important;
+        height: 80px !important;
+    }
 }

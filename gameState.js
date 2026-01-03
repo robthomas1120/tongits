@@ -14,6 +14,7 @@ class Player {
         this.exposedMelds = [];
         this.chips = 100;
         this.hasOpened = false;
+        this.openedThisTurn = false;
         this.isBurned = false;
         this.lastAction = '';
         this.consecutiveWins = 0;
@@ -114,10 +115,23 @@ class GameSession {
         if (GameUtils.isSet(potentialMeld) || GameUtils.isRun(potentialMeld)) {
             // Remove cards from hand
             player.hand = player.hand.filter((_, i) => !cardsToMeltIndexes.includes(i));
-            player.exposedMelds.push({ cards: potentialMeld, isSecret: false });
+            player.exposedMelds.push({
+                cards: potentialMeld,
+                isSecret: false,
+                isSapawedByOthers: false
+            });
+            if (!player.hasOpened) {
+                player.openedThisTurn = true;
+            }
             player.hasOpened = true;
             this.phase = 'action';
             this.addLog(`${player.name} drew from discard and exposed a meld.`);
+
+            // Check for Tongits win
+            if (player.hand.length === 0) {
+                this.endRound(player, 'tongit');
+            }
+
             return true;
         } else {
             this.discardPile.push(topCard); // Put it back
@@ -152,7 +166,14 @@ class GameSession {
         if (GameUtils.isSet(meldCards) || GameUtils.isRun(meldCards)) {
             // Remove from hand (sort indexes descending to avoid shift issues)
             [...cardIndexes].sort((a, b) => b - a).forEach(i => player.hand.splice(i, 1));
-            player.exposedMelds.push({ cards: meldCards, isSecret: false });
+            player.exposedMelds.push({
+                cards: meldCards,
+                isSecret: false,
+                isSapawedByOthers: false
+            });
+            if (!player.hasOpened) {
+                player.openedThisTurn = true;
+            }
             player.hasOpened = true;
             this.addLog(`${player.name} exposed a meld.`);
 
@@ -179,6 +200,12 @@ class GameSession {
         if (GameUtils.canLayOff(card, meld.cards)) {
             player.hand.splice(cardIndex, 1);
             meld.cards.push(card);
+
+            // If someone else sapawed onto this meld, mark it
+            if (player.id !== targetPlayerId) {
+                meld.isSapawedByOthers = true;
+            }
+
             // Re-sort if it's a run to maintain visualization
             if (GameUtils.isRun(meld.cards)) {
                 meld.cards.sort((a, b) => a.getRankIndex() - b.getRankIndex());
@@ -191,6 +218,22 @@ class GameSession {
             return true;
         }
         return false;
+    }
+
+    callFight(playerId) {
+        if (this.status !== 'playing' || this.phase !== 'action') return false;
+        const challenger = this.getCurrentPlayer();
+        if (challenger.id !== playerId) return false;
+
+        // Eligibility Check
+        if (!challenger.hasOpened) return false;
+        if (challenger.openedThisTurn) return false; // Cannot fight on same turn as opening
+        const allSapawed = challenger.exposedMelds.every(m => m.isSapawedByOthers);
+        if (allSapawed) return false;
+
+        this.addLog(`${challenger.name} called a FIGHT!`);
+        this.endRound(challenger, 'fight');
+        return true;
     }
 
     endRound(winner, type) {
@@ -233,6 +276,56 @@ class GameSession {
                 isWinner: r.id === finalWinner.id
             }));
             this.addLog(`Game ended! ${finalWinner.name} wins with least weight (${minWeight}).`);
+        } else if (type === 'fight') {
+            const results = this.players.map(p => {
+                const weight = GameUtils.calculateHandValue(p.hand);
+                const isBurned = !p.hasOpened;
+                return {
+                    id: p.id,
+                    name: p.name,
+                    weight: weight,
+                    isBurned: isBurned,
+                    bestCard: this.findBestCard(p.hand)
+                };
+            });
+
+            // Rules:
+            // 1. Burned players lose automatically.
+            // 2. Compare weight of non-burned players.
+            // 3. Challenger wins if their weight is strictly less than everyone else's.
+            //    If anyone ties or beats the challenger, that defender (or the best among them) wins.
+
+            const validContestants = results.filter(r => !r.isBurned);
+            const challengerResult = results.find(r => r.id === winner.id);
+            const competitors = validContestants.filter(r => r.id !== winner.id);
+
+            let finalWinnerResult = challengerResult;
+            let winReason = "least weight";
+
+            for (const defender of competitors) {
+                if (defender.weight < finalWinnerResult.weight) {
+                    finalWinnerResult = defender;
+                    winReason = "least weight";
+                } else if (defender.weight === finalWinnerResult.weight) {
+                    // Challenger loses on tie
+                    if (finalWinnerResult.id === challengerResult.id) {
+                        finalWinnerResult = defender;
+                        winReason = "winning the tie";
+                    } else {
+                        // Tie-breaker between two defenders
+                        if (this.compareCardsForTieBreaker(defender.bestCard, finalWinnerResult.bestCard) > 0) {
+                            finalWinnerResult = defender;
+                        }
+                    }
+                }
+            }
+
+            this.winnerOfPreviousHand = finalWinnerResult.id;
+            this.roundResults.players = results.map(r => ({
+                ...r,
+                isWinner: r.id === finalWinnerResult.id
+            }));
+            this.addLog(`${finalWinnerResult.name} wins the fight by ${winReason}!`);
         }
     }
 
@@ -276,6 +369,7 @@ class GameSession {
     }
 
     nextTurn() {
+        this.players[this.turnIndex].openedThisTurn = false; // Reset for player ending turn
         this.turnIndex = (this.turnIndex + 1) % 3;
     }
 }

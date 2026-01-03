@@ -12,6 +12,7 @@ const startGameBtn = document.getElementById('start-game-btn');
 const botDifficulty = document.getElementById('bot-difficulty');
 const sortBtn = document.getElementById('sort-btn');
 const groupBtn = document.getElementById('group-btn');
+const fightBtn = document.getElementById('fight-btn');
 const exposeBtn = document.getElementById('expose-btn');
 const suggestBtn = document.getElementById('suggest-btn');
 const myHand = document.getElementById('my-hand');
@@ -108,7 +109,13 @@ discardPile.addEventListener('click', () => {
                 socket.emit('discard', { cardIndex: serverIdx });
                 selectedCards.clear();
             }
+        } else if (currentGameState.phase === 'action' && selectedCards.size === 0) {
+            // Show discard history when not discarding
+            showDiscardHistory();
         }
+    } else {
+        // Not my turn - show discard history
+        showDiscardHistory();
     }
 });
 
@@ -158,6 +165,12 @@ sortBtn.addEventListener('click', () => {
     sortBtn.innerText = `Sort: ${sortMode.charAt(0).toUpperCase() + sortMode.slice(1)}`;
     applySort();
     renderHand(myCards);
+});
+
+fightBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to call a FIGHT? You must have the lowest points to win!")) {
+        socket.emit('call-fight');
+    }
 });
 
 groupBtn.addEventListener('click', () => {
@@ -405,9 +418,24 @@ function renderGameState(state) {
     if (myTurn && state.phase === 'action') {
         exposeZoneLeft.classList.remove('hidden');
         exposeZoneRight.classList.remove('hidden');
+
+        // Fight button eligibility for local player
+        const me = state.players.find(p => p.id === myId);
+        if (me && me.hasOpened) {
+            const anySapawable = me.exposedMelds.some(m => !m.isSapawedByOthers);
+            const isOpeningTurn = me.openedThisTurn;
+            fightBtn.disabled = !anySapawable || isOpeningTurn;
+
+            if (isOpeningTurn && anySapawable) {
+                gameLog.innerHTML += `<div class="hint" style="color:#ffcc00; font-weight:bold; padding: 5px 0;">🚫 You cannot call a FIGHT on the turn you open.</div>`;
+            }
+        } else {
+            fightBtn.disabled = true;
+        }
     } else {
         exposeZoneLeft.classList.add('hidden');
         exposeZoneRight.classList.add('hidden');
+        fightBtn.disabled = true;
     }
 
     gameLog.scrollTop = gameLog.scrollHeight;
@@ -557,6 +585,44 @@ function updatePlayerSlot(slotId, player, isActive) {
             groupEl.addEventListener('click', () => {
                 if (selectedCards.size === 1 && currentGameState.phase === 'action' && currentGameState.players[currentGameState.turnIndex].id === myId) {
                     const localIdx = Array.from(selectedCards)[0];
+                    const selectedCard = myCards[localIdx];
+                    const serverMe = currentGameState.players.find(p => p.id === myId);
+                    const serverIdx = serverMe.hand.findIndex(c => c && c.rank === selectedCard.rank && c.suit === selectedCard.suit);
+
+                    if (serverIdx !== -1) {
+                        socket.emit('sapaw', {
+                            targetPlayerId: player.id,
+                            meldIndex: meldIndex,
+                            cardIndex: serverIdx
+                        });
+                        selectedCards.clear();
+                        renderHand(myCards);
+                    }
+                }
+            });
+
+            // Add Drag and Drop listeners for Sapaw
+            groupEl.addEventListener('dragover', (e) => {
+                if (isMyTurn() && currentGameState.phase === 'action') {
+                    e.preventDefault();
+                    groupEl.classList.add('drag-over');
+                }
+            });
+
+            groupEl.addEventListener('dragleave', () => {
+                groupEl.classList.remove('drag-over');
+            });
+
+            groupEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                groupEl.classList.remove('drag-over');
+                if (!isMyTurn() || currentGameState.phase !== 'action') return;
+
+                const data = e.dataTransfer.getData('text/plain');
+                if (data === 'group') return; // Only single card sapaw supported for now via drag
+
+                const localIdx = parseInt(data);
+                if (!isNaN(localIdx)) {
                     const selectedCard = myCards[localIdx];
                     const serverMe = currentGameState.players.find(p => p.id === myId);
                     const serverIdx = serverMe.hand.findIndex(c => c && c.rank === selectedCard.rank && c.suit === selectedCard.suit);
@@ -733,7 +799,7 @@ function renderResults(overlay, results) {
         }
 
         row.innerHTML = `
-            <span>${p.name} ${p.isWinner ? '🏆' : ''}</span>
+            <span>${p.name} ${p.isWinner ? '🏆' : ''}${p.isBurned ? '<span class="burned-badge">BURNED</span>' : ''}</span>
             <span>${p.weight} pts</span>
         `;
         list.appendChild(row);
@@ -745,3 +811,73 @@ function updateActionButtons() {
     discardBtn.disabled = !myTurn || currentGameState.phase !== 'action' || selectedCards.size !== 1;
     exposeBtn.disabled = !myTurn || currentGameState.phase !== 'action' || selectedCards.size < 3;
 }
+
+// Discard Pile History Modal
+const discardHistoryOverlay = document.getElementById('discard-history-overlay');
+const closeHistoryBtn = document.getElementById('close-history-btn');
+const sortToggleBtn = document.getElementById('sort-toggle-btn');
+const sortModeText = document.getElementById('sort-mode-text');
+const discardCardGrid = document.getElementById('discard-card-grid');
+
+let isSortedBySuit = false;
+
+function showDiscardHistory() {
+    if (!currentGameState || !currentGameState.discardPile || currentGameState.discardPile.length === 0) {
+        return; // No cards to show
+    }
+
+    // Reset to chronological view
+    isSortedBySuit = false;
+    sortModeText.innerText = 'Chronological';
+    
+    // Populate cards
+    renderDiscardHistory();
+    
+    // Show modal
+    discardHistoryOverlay.classList.remove('hidden');
+}
+
+function renderDiscardHistory() {
+    discardCardGrid.innerHTML = '';
+    
+    let cardsToDisplay = [...currentGameState.discardPile];
+    
+    if (isSortedBySuit) {
+        // Sort by suit then rank
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        
+        cardsToDisplay.sort((a, b) => {
+            const suitDiff = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+            if (suitDiff !== 0) return suitDiff;
+            return RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank);
+        });
+    }
+    
+    // Create card elements
+    cardsToDisplay.forEach(card => {
+        const cardEl = createCardElement(card);
+        discardCardGrid.appendChild(cardEl);
+    });
+}
+
+function toggleSort() {
+    isSortedBySuit = !isSortedBySuit;
+    sortModeText.innerText = isSortedBySuit ? 'By Suit/Rank' : 'Chronological';
+    renderDiscardHistory();
+}
+
+function closeDiscardHistory() {
+    discardHistoryOverlay.classList.add('hidden');
+}
+
+// Event listeners for modal
+closeHistoryBtn.addEventListener('click', closeDiscardHistory);
+sortToggleBtn.addEventListener('click', toggleSort);
+
+// Close modal when clicking outside
+discardHistoryOverlay.addEventListener('click', (e) => {
+    if (e.target === discardHistoryOverlay) {
+        closeDiscardHistory();
+    }
+});

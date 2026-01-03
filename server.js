@@ -99,6 +99,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('call-fight', () => {
+        if (game.callFight(socket.id)) {
+            broadcastUpdate();
+        }
+    });
+
     function broadcastUpdate() {
         game.players.forEach(p => {
             io.to(p.id).emit('game-update', { gameState: serializeGameState(game, p.id) });
@@ -190,6 +196,7 @@ function serializeGameState(game, forPlayerId) {
             exposedMelds: p.exposedMelds,
             chips: p.chips,
             hasOpened: p.hasOpened,
+            openedThisTurn: p.openedThisTurn,
             isBurned: p.isBurned
         })),
         discardPile: game.discardPile,
