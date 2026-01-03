@@ -71,6 +71,19 @@ if (!roomId) {
         });
     };
     document.body.appendChild(inviteBtn);
+
+    // Debug: Show Room ID
+    const roomIndicator = document.createElement('div');
+    roomIndicator.innerText = `Room: ${roomId}`;
+    roomIndicator.style.position = 'absolute';
+    roomIndicator.style.top = '10px';
+    roomIndicator.style.left = '10px';
+    roomIndicator.style.background = 'rgba(0,0,0,0.5)';
+    roomIndicator.style.color = 'white';
+    roomIndicator.style.padding = '5px 10px';
+    roomIndicator.style.borderRadius = '5px';
+    roomIndicator.style.zIndex = '1000';
+    document.body.appendChild(roomIndicator);
 }
 
 // Join Room Logic

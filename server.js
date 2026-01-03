@@ -20,41 +20,80 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const game = new GameSession();
+// Multi-Lobby Manager
+const lobbies = new Map(); // roomId -> GameSession
+
+function getGame(roomId) {
+    if (!lobbies.has(roomId)) {
+        lobbies.set(roomId, new GameSession());
+        console.log(`Created new lobby: ${roomId}`);
+    }
+    return lobbies.get(roomId);
+}
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
+    // Initial connection doesn't join a room yet
+    // Client must emit 'join-room' first
+
+    socket.on('join-room', (roomId) => {
+        socket.join(roomId);
+        socket.data.roomId = roomId;
+        const game = getGame(roomId);
+        console.log(`Socket ${socket.id} joined room ${roomId}`);
+
+        // Send current state immediately (even if empty)
+        socket.emit('lobby-update', { players: game.players });
+    });
+
     socket.on('join-lobby', (data) => {
-        console.log(`Player joining: ${data.name} (${socket.id})`);
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+
+        const game = getGame(roomId);
+        console.log(`Player joining room ${roomId}: ${data.name} (${socket.id})`);
+
         const player = game.addPlayer(socket.id, data.name, 'human');
         if (player) {
-            console.log(`Player added. Current count: ${game.players.length}`);
-            io.emit('lobby-update', { players: game.players });
+            console.log(`Player added to ${roomId}. Current count: ${game.players.length}`);
+            io.to(roomId).emit('lobby-update', { players: game.players });
             socket.emit('join-success', { playerId: socket.id });
         } else {
-            console.log(`Player join failed (full).`);
+            console.log(`Player join failed (full) in ${roomId}.`);
             socket.emit('join-fail', { message: 'Lobby full' });
         }
     });
 
     socket.on('add-bot', (data) => {
-        console.log(`Adding ${data.difficulty} bot.`);
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
+
+        console.log(`Adding ${data.difficulty} bot to ${roomId}.`);
         const botId = `bot-${Math.random().toString(36).substr(2, 9)}`;
         const bot = game.addPlayer(botId, `Bot ${data.difficulty}`, 'bot', data.difficulty);
         if (bot) {
             console.log(`Bot added. Current count: ${game.players.length}`);
-            io.emit('lobby-update', { players: game.players });
+            io.to(roomId).emit('lobby-update', { players: game.players });
         }
     });
 
     socket.on('remove-player', (id) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
+
         game.players = game.players.filter(p => p.id !== id);
-        io.emit('lobby-update', { players: game.players });
+        io.to(roomId).emit('lobby-update', { players: game.players });
     });
 
     socket.on('start-game', () => {
-        console.log(`Start game requested. Players: ${game.players.length}`);
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
+
+        console.log(`Start game requested for ${roomId}. Players: ${game.players.length}`);
         if (game.players.length === 3) {
             game.startRound();
             console.log("Round started. Sending game-started to players.");
@@ -63,64 +102,84 @@ io.on('connection', (socket) => {
             });
 
             // Check if first turn is a bot
-            setTimeout(() => checkBotTurn(), 1500);
+            setTimeout(() => checkBotTurn(roomId), 1500);
         } else {
             console.log("Cannot start: need exactly 3 players.");
         }
     });
 
     socket.on('draw-stock', () => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.drawFromStock(socket.id)) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
     socket.on('draw-discard', (data) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.drawFromDiscard(socket.id, data.meldIndexes || [])) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
     socket.on('discard', (data) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.discard(socket.id, data.cardIndex)) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
     socket.on('expose-meld', (data) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.exposeMeld(socket.id, data.cardIndexes)) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
     socket.on('sapaw', (data) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.sapaw(socket.id, data.targetPlayerId, data.meldIndex, data.cardIndex)) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
     socket.on('call-fight', () => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        const game = getGame(roomId);
         if (game.callFight(socket.id)) {
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         }
     });
 
-    function broadcastUpdate() {
+    function broadcastUpdate(roomId) {
+        const game = getGame(roomId);
         game.players.forEach(p => {
             io.to(p.id).emit('game-update', { gameState: serializeGameState(game, p.id) });
         });
 
         // Wait and check if next turn is a bot
-        setTimeout(() => checkBotTurn(), 1500);
+        setTimeout(() => checkBotTurn(roomId), 1500);
     }
 
-    async function checkBotTurn() {
+    async function checkBotTurn(roomId) {
+        const game = getGame(roomId);
         if (game.status !== 'playing') return;
 
         const currentPlayer = game.getCurrentPlayer();
         if (!currentPlayer || currentPlayer.type !== 'bot') return;
 
-        console.log(`Bot's turn: ${currentPlayer.name} (${game.phase})`);
+        console.log(`Bot's turn in ${roomId}: ${currentPlayer.name} (${game.phase})`);
 
         const botState = serializeGameState(game, currentPlayer.id);
         const decision = BotAI.getAction(currentPlayer, botState);
@@ -130,7 +189,6 @@ io.on('connection', (socket) => {
                 const topCard = game.discardPile[game.discardPile.length - 1];
                 const melds = GameUtils.findPossibleMelds([...currentPlayer.hand, topCard]);
                 const bestMeld = melds.find(m => {
-                    // Primitive check: meld contains the topCard (rank or suit match)
                     return m.some(c => c.rank === topCard.rank && c.suit === topCard.suit);
                 });
 
@@ -143,46 +201,54 @@ io.on('connection', (socket) => {
             } else {
                 game.drawFromStock(currentPlayer.id);
             }
-            broadcastUpdate();
+            broadcastUpdate(roomId);
         } else if (game.phase === 'action' && decision) {
             if (decision.action === 'expose') {
                 game.exposeMeld(currentPlayer.id, decision.cardIndexes);
-                broadcastUpdate();
+                broadcastUpdate(roomId);
             } else if (decision.action === 'sapaw') {
                 game.sapaw(currentPlayer.id, decision.targetPlayerId, decision.meldIndex, decision.cardIndex);
-                broadcastUpdate();
+                broadcastUpdate(roomId);
             } else if (decision.action === 'discard') {
                 game.discard(currentPlayer.id, decision.cardIndex);
-                broadcastUpdate();
+                broadcastUpdate(roomId);
             }
         }
     }
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+
+        console.log('User disconnected from', roomId, socket.id);
+        const game = getGame(roomId);
+
         const playerIndex = game.players.findIndex(p => p.id === socket.id);
         if (playerIndex !== -1) {
             const player = game.players[playerIndex];
             game.players.splice(playerIndex, 1);
-            console.log(`Player ${player.name} removed. Count: ${game.players.length}`);
+            console.log(`Player ${player.name} removed from ${roomId}. Count: ${game.players.length}`);
 
-            // If game was playing, we might want to abort or just notify
             if (game.status === 'playing') {
                 game.addLog(`${player.name} disconnected.`);
-                io.emit('game-update', { gameState: serializeGameState(game, null) });
+                io.to(roomId).emit('game-update', { gameState: serializeGameState(game, null) });
             }
-            io.emit('lobby-update', { players: game.players });
+            io.to(roomId).emit('lobby-update', { players: game.players });
         }
 
-        // If no humans left, hard reset
         const humanCount = game.players.filter(p => p.type === 'human').length;
         if (humanCount === 0) {
-            console.log("No human players left. Resetting game session.");
+            console.log(`No human players left in ${roomId}. Resetting game session.`);
             game.reset();
-            game.date = new Date(); // Force refresh if needed
-            io.emit('lobby-update', { players: [] });
-            // Also emit a reset event so any lingering clients know
-            io.emit('game-reset');
+            game.date = new Date();
+            io.to(roomId).emit('lobby-update', { players: [] });
+            io.to(roomId).emit('game-reset');
+
+            // Clean up empty lobbies after a while? 
+            // For now, persistent in memory until server restarts or explicitly deleted
+            if (game.players.length === 0) {
+                // lobbies.delete(roomId); // Maybe later
+            }
         }
     });
 });
