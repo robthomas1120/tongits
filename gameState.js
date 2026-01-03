@@ -92,6 +92,11 @@ class GameSession {
             player.hand.push(card);
             this.phase = 'action';
             this.addLog(`${player.name} drew from stock.`);
+
+            if (this.deck.count === 0) {
+                this.addLog("Stock pile is empty. Round finishing...");
+                this.endRound(null, 'deck-empty');
+            }
             return true;
         }
         return false;
@@ -150,6 +155,39 @@ class GameSession {
             player.exposedMelds.push({ cards: meldCards, isSecret: false });
             player.hasOpened = true;
             this.addLog(`${player.name} exposed a meld.`);
+
+            if (player.hand.length === 0) {
+                this.endRound(player, 'tongit');
+            }
+            return true;
+        }
+        return false;
+    }
+
+    sapaw(playerId, targetPlayerId, meldIndex, cardIndex) {
+        if (this.status !== 'playing' || this.phase !== 'action') return false;
+        const player = this.getCurrentPlayer();
+        if (player.id !== playerId) return false;
+
+        const targetPlayer = this.players.find(p => p.id === targetPlayerId);
+        if (!targetPlayer) return false;
+
+        const meld = targetPlayer.exposedMelds[meldIndex];
+        if (!meld) return false;
+
+        const card = player.hand[cardIndex];
+        if (GameUtils.canLayOff(card, meld.cards)) {
+            player.hand.splice(cardIndex, 1);
+            meld.cards.push(card);
+            // Re-sort if it's a run to maintain visualization
+            if (GameUtils.isRun(meld.cards)) {
+                meld.cards.sort((a, b) => a.getRankIndex() - b.getRankIndex());
+            }
+            this.addLog(`${player.name} sapawed on ${targetPlayer.name}'s meld.`);
+
+            if (player.hand.length === 0) {
+                this.endRound(player, 'tongit');
+            }
             return true;
         }
         return false;
@@ -157,9 +195,75 @@ class GameSession {
 
     endRound(winner, type) {
         this.status = 'ended';
-        this.winnerOfPreviousHand = winner.id;
-        // Scoring logic would go here
-        this.addLog(`Game ended! ${winner.name} wins by ${type}.`);
+        this.roundResults = { type, players: [] };
+
+        if (type === 'tongit') {
+            this.winnerOfPreviousHand = winner.id;
+            this.players.forEach(p => {
+                const weight = GameUtils.calculateHandValue(p.hand);
+                this.roundResults.players.push({ id: p.id, name: p.name, weight, isWinner: p.id === winner.id });
+            });
+            this.addLog(`Game ended! ${winner.name} wins by ${type}.`);
+        } else if (type === 'deck-empty') {
+            // Calculate weights for all
+            const results = this.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                weight: GameUtils.calculateHandValue(p.hand),
+                bestCard: this.findBestCard(p.hand)
+            }));
+
+            // Find min weight
+            let minWeight = Math.min(...results.map(r => r.weight));
+            let tiedPlayers = results.filter(r => r.weight === minWeight);
+
+            let finalWinner;
+            if (tiedPlayers.length === 1) {
+                finalWinner = tiedPlayers[0];
+            } else {
+                // Tie breaker: highest value card
+                tiedPlayers.sort((a, b) => this.compareCardsForTieBreaker(b.bestCard, a.bestCard));
+                finalWinner = tiedPlayers[0];
+                this.addLog(`Tie breaker: ${finalWinner.name} wins with ${finalWinner.bestCard.rank}${finalWinner.bestCard.suit}.`);
+            }
+
+            this.winnerOfPreviousHand = finalWinner.id;
+            this.roundResults.players = results.map(r => ({
+                ...r,
+                isWinner: r.id === finalWinner.id
+            }));
+            this.addLog(`Game ended! ${finalWinner.name} wins with least weight (${minWeight}).`);
+        }
+    }
+
+    findBestCard(hand) {
+        if (!hand || hand.length === 0) return null;
+        let best = hand[0];
+        for (let i = 1; i < hand.length; i++) {
+            if (this.compareCardsForTieBreaker(hand[i], best) > 0) {
+                best = hand[i];
+            }
+        }
+        return best;
+    }
+
+    compareCardsForTieBreaker(cardA, cardB) {
+        if (!cardA) return -1;
+        if (!cardB) return 1;
+        const SUIT_ORDER = { '♦': 4, '♥': 3, '♠': 2, '♣': 1 };
+        const getTieBreakerRankValue = (rank) => {
+            if (rank === 'Q') return 13;
+            if (rank === 'K') return 12;
+            if (rank === 'J') return 11;
+            if (rank === 'A') return 1;
+            return parseInt(rank);
+        };
+
+        const valA = getTieBreakerRankValue(cardA.rank);
+        const valB = getTieBreakerRankValue(cardB.rank);
+
+        if (valA !== valB) return valA - valB;
+        return SUIT_ORDER[cardA.suit] - SUIT_ORDER[cardB.suit];
     }
 
     addLog(msg) {

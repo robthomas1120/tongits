@@ -56,8 +56,38 @@ startGameBtn.addEventListener('click', () => {
 });
 
 // Pile Click Interactions
+const isMyTurn = () => currentGameState && currentGameState.players[currentGameState.turnIndex].id === myId;
+
+deckPile.addEventListener('dragover', (e) => {
+    if (isMyTurn() && currentGameState.phase === 'draw') {
+        e.preventDefault();
+        deckPile.classList.add('drag-over');
+    }
+});
+deckPile.addEventListener('dragleave', () => deckPile.classList.remove('drag-over'));
+deckPile.addEventListener('drop', (e) => {
+    e.preventDefault();
+    deckPile.classList.remove('drag-over');
+    if (canDraw()) socket.emit('draw-stock');
+});
+
 deckPile.addEventListener('click', () => {
     if (canDraw()) socket.emit('draw-stock');
+});
+discardPile.addEventListener('dragover', (e) => {
+    if (isMyTurn() && currentGameState.phase === 'action') {
+        e.preventDefault();
+        discardPile.classList.add('drag-over');
+    }
+});
+discardPile.addEventListener('dragleave', () => discardPile.classList.remove('drag-over'));
+discardPile.addEventListener('drop', (e) => {
+    e.preventDefault();
+    discardPile.classList.remove('drag-over');
+    const data = e.dataTransfer.getData('text/plain');
+    if (data === 'group') return;
+    const localIdx = parseInt(data);
+    if (!isNaN(localIdx)) performDiscard(localIdx);
 });
 
 discardPile.addEventListener('click', () => {
@@ -80,9 +110,21 @@ discardPile.addEventListener('click', () => {
 });
 
 function canDraw() {
-    return currentGameState &&
-        currentGameState.players[currentGameState.turnIndex].id === myId &&
-        currentGameState.phase === 'draw';
+    return isMyTurn() && currentGameState.phase === 'draw';
+}
+
+function performDiscard(localIdx) {
+    if (isMyTurn() && currentGameState.phase === 'action') {
+        const selectedCard = myCards[localIdx];
+        const serverMe = currentGameState.players.find(p => p.id === myId);
+        if (!serverMe) return;
+        const serverIdx = serverMe.hand.findIndex(c => c && c.rank === selectedCard.rank && c.suit === selectedCard.suit);
+        if (serverIdx !== -1) {
+            socket.emit('discard', { cardIndex: serverIdx });
+            selectedCards.clear();
+            renderHand(myCards);
+        }
+    }
 }
 
 // Gameplay Actions
@@ -135,7 +177,6 @@ groupBtn.addEventListener('click', () => {
         myCards.splice(targetIdx, 0, ...cardsToMove);
 
         selectedCards.clear();
-        for (let i = 0; i < cardsToMove.length; i++) selectedCards.add(targetIdx + i);
     }
 
     renderHand(myCards);
@@ -235,17 +276,21 @@ function renderGameState(state) {
     const leftPlayer = state.players[(playerIndex + 1) % 3];
     const rightPlayer = state.players[(playerIndex + 2) % 3];
 
-    document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('active-turn'));
-    const activePlayerSlotId = state.players[state.turnIndex].id === myId ? 'player-bottom' :
-        state.players[state.turnIndex].id === leftPlayer.id ? 'player-left' : 'player-right';
-    document.getElementById(activePlayerSlotId).classList.add('active-turn');
-
-    updatePlayerSlot('player-bottom', me);
-    updatePlayerSlot('player-left', leftPlayer);
-    updatePlayerSlot('player-right', rightPlayer);
+    updatePlayerSlot('player-bottom', me, state.players[state.turnIndex].id === myId);
+    updatePlayerSlot('player-left', leftPlayer, state.players[state.turnIndex].id === leftPlayer.id);
+    updatePlayerSlot('player-right', rightPlayer, state.players[state.turnIndex].id === rightPlayer.id);
 
     stockCount.innerText = state.stockCount;
     sidePotCount.innerText = `$${state.sidePot.toLocaleString()}`;
+
+    // Game Over Overlay
+    const overlay = document.getElementById('game-over-overlay') || createGameOverOverlay();
+    if (state.status === 'ended' && state.roundResults) {
+        overlay.classList.remove('hidden');
+        renderResults(overlay, state.roundResults);
+    } else {
+        overlay.classList.add('hidden');
+    }
 
     // Discard Pile Usability
     discardPile.innerHTML = '';
@@ -348,13 +393,19 @@ function findMatches(hand, card) {
     return matches;
 }
 
-function updatePlayerSlot(slotId, player) {
+function updatePlayerSlot(slotId, player, isActive) {
     const slot = document.getElementById(slotId);
     if (!player) {
         slot.classList.add('hidden');
         return;
     }
     slot.classList.remove('hidden');
+
+    if (isActive) {
+        slot.classList.add('active-turn');
+    } else {
+        slot.classList.remove('active-turn');
+    }
 
     const nameEl = slot.querySelector('.name') || document.getElementById('my-name');
     const chipsEl = slot.querySelector('.chips') || document.getElementById('my-chips');
@@ -378,9 +429,24 @@ function updatePlayerSlot(slotId, player) {
     const exposedContainer = slot.querySelector('.exposed-melds');
     if (exposedContainer) {
         exposedContainer.innerHTML = '';
-        player.exposedMelds.forEach(meld => {
+        player.exposedMelds.forEach((meld, meldIndex) => {
             const groupEl = document.createElement('div');
             groupEl.className = 'meld-group';
+
+            // Add click listener for Sapaw
+            groupEl.addEventListener('click', () => {
+                if (selectedCards.size === 1 && currentGameState.phase === 'action' && currentGameState.players[currentGameState.turnIndex].id === myId) {
+                    const cardIndex = Array.from(selectedCards)[0];
+                    socket.emit('sapaw', {
+                        targetPlayerId: player.id,
+                        meldIndex: meldIndex,
+                        cardIndex: cardIndex
+                    });
+                    selectedCards.clear();
+                    renderHand(myCards);
+                }
+            });
+
             meld.cards.forEach(card => {
                 const cardEl = document.createElement('div');
                 cardEl.className = `card-mini ${['♥', '♦'].includes(card.suit) ? 'red' : ''}`;
@@ -473,6 +539,61 @@ function renderHand(cards) {
             }
         });
         myHand.appendChild(cardEl);
+    });
+}
+
+// Game Over Visuals
+function createGameOverOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'game-over-overlay';
+    overlay.className = 'glass-panel hidden';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '50%';
+    overlay.style.left = '50%';
+    overlay.style.transform = 'translate(-50%, -50%)';
+    overlay.style.zIndex = '20000';
+    overlay.style.minWidth = '300px';
+    overlay.style.pointerEvents = 'auto';
+
+    overlay.innerHTML = `
+        <h2>Round Over</h2>
+        <div id="results-list" style="margin: 20px 0; text-align: left;"></div>
+        <button id="next-round-btn" class="primary-btn">Back to Lobby</button>
+    `;
+    document.getElementById('game-container').appendChild(overlay);
+
+    document.getElementById('next-round-btn').addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        location.reload(); // Quick reset
+    });
+
+    return overlay;
+}
+
+function renderResults(overlay, results) {
+    const list = document.getElementById('results-list');
+    list.innerHTML = '';
+
+    const title = results.type === 'tongit' ? 'TONGITS!' : 'Deck Empty (Points Result)';
+    overlay.querySelector('h2').innerText = title;
+
+    results.players.forEach(p => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '5px 0';
+        row.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+
+        if (p.isWinner) {
+            row.style.color = 'var(--accent-gold)';
+            row.style.fontWeight = 'bold';
+        }
+
+        row.innerHTML = `
+            <span>${p.name} ${p.isWinner ? '🏆' : ''}</span>
+            <span>${p.weight} pts</span>
+        `;
+        list.appendChild(row);
     });
 }
 

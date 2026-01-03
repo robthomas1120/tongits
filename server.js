@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const os = require('os');
 const { GameSession } = require('./gameState');
+const { GameUtils } = require('./gameEngine');
+const BotAI = require('./botAI');
 
 const app = express();
 const server = http.createServer(app);
@@ -56,10 +58,12 @@ io.on('connection', (socket) => {
         if (game.players.length === 3) {
             game.startRound();
             console.log("Round started. Sending game-started to players.");
-            // Send personalized game state to each player (so they only see their own hand)
             game.players.forEach(p => {
                 io.to(p.id).emit('game-started', { gameState: serializeGameState(game, p.id) });
             });
+
+            // Check if first turn is a bot
+            setTimeout(() => checkBotTurn(), 1500);
         } else {
             console.log("Cannot start: need exactly 3 players.");
         }
@@ -89,10 +93,63 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('sapaw', (data) => {
+        if (game.sapaw(socket.id, data.targetPlayerId, data.meldIndex, data.cardIndex)) {
+            broadcastUpdate();
+        }
+    });
+
     function broadcastUpdate() {
         game.players.forEach(p => {
             io.to(p.id).emit('game-update', { gameState: serializeGameState(game, p.id) });
         });
+
+        // Wait and check if next turn is a bot
+        setTimeout(() => checkBotTurn(), 1500);
+    }
+
+    async function checkBotTurn() {
+        if (game.status !== 'playing') return;
+
+        const currentPlayer = game.getCurrentPlayer();
+        if (!currentPlayer || currentPlayer.type !== 'bot') return;
+
+        console.log(`Bot's turn: ${currentPlayer.name} (${game.phase})`);
+
+        const botState = serializeGameState(game, currentPlayer.id);
+        const decision = BotAI.getAction(currentPlayer, botState);
+
+        if (game.phase === 'draw') {
+            if (decision === 'draw-discard') {
+                const topCard = game.discardPile[game.discardPile.length - 1];
+                const melds = GameUtils.findPossibleMelds([...currentPlayer.hand, topCard]);
+                const bestMeld = melds.find(m => {
+                    // Primitive check: meld contains the topCard (rank or suit match)
+                    return m.some(c => c.rank === topCard.rank && c.suit === topCard.suit);
+                });
+
+                if (bestMeld) {
+                    const handIndices = BotAI.getIndicesForMeld(currentPlayer.hand, bestMeld.filter(c => c.rank !== topCard.rank || c.suit !== topCard.suit));
+                    game.drawFromDiscard(currentPlayer.id, handIndices);
+                } else {
+                    game.drawFromStock(currentPlayer.id);
+                }
+            } else {
+                game.drawFromStock(currentPlayer.id);
+            }
+            broadcastUpdate();
+        } else if (game.phase === 'action' && decision) {
+            if (decision.action === 'expose') {
+                game.exposeMeld(currentPlayer.id, decision.cardIndexes);
+                broadcastUpdate();
+            } else if (decision.action === 'sapaw') {
+                game.sapaw(currentPlayer.id, decision.targetPlayerId, decision.meldIndex, decision.cardIndex);
+                broadcastUpdate();
+            } else if (decision.action === 'discard') {
+                game.discard(currentPlayer.id, decision.cardIndex);
+                broadcastUpdate();
+            }
+        }
     }
 
     socket.on('disconnect', () => {
@@ -141,6 +198,8 @@ function serializeGameState(game, forPlayerId) {
         dealerIndex: game.dealerIndex,
         stockCount: game.deck.count,
         sidePot: game.sidePot,
+        status: game.status,
+        roundResults: game.roundResults,
         logs: game.logs
     };
 }

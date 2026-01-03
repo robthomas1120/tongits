@@ -130,13 +130,35 @@ button:disabled {
     justify-content: center;
 }
 
-/* Player Slots */
+/* Player Slots - Highlight Active Turn */
 .player-slot {
     position: absolute;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 5px;
+    transition: all 0.3s ease;
+    padding: 10px;
+    border-radius: 25px;
+}
+
+#player-bottom.active-turn {
+    background: rgba(255, 234, 0, 0.1);
+    box-shadow: 0 0 20px var(--accent-gold);
+    border: 3px solid var(--accent-gold);
+}
+
+#player-bottom {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: auto;
+    z-index: 9000;
 }
 
 #player-left {
@@ -160,19 +182,6 @@ button:disabled {
     max-width: 200px;
     flex-wrap: wrap;
     gap: 5px;
-}
-
-/* Player Bottom Slot - Global Container */
-#player-bottom {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    z-index: 9000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    pointer-events: none;
 }
 
 .player-info-card {
@@ -285,6 +294,22 @@ button:disabled {
     justify-content: center;
     position: relative;
     cursor: pointer;
+}
+
+#stock-count {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--accent-gold);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    z-index: 10;
+    pointer-events: none;
+    border: 1px solid var(--accent-gold);
 }
 
 .card-back {
@@ -580,6 +605,18 @@ screen and (max-height: 500px) {
     font-size: 1.2rem;
 }
 
+/* Meld Hover for Sapaw */
+.meld-group {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.meld-group:hover {
+    transform: scale(1.1);
+    background: rgba(255, 234, 0, 0.2);
+    box-shadow: 0 0 10px var(--accent-gold);
+}
+
 .meld-group .card-mini:first-child {
     margin-left: 0;
 }
@@ -601,12 +638,19 @@ screen and (max-height: 500px) {
     background: rgba(255, 255, 255, 0.05);
 }
 
-/* Pile Interaction */
+/* Pile Interaction & Drag Feedback */
 .pile.disabled,
 .button.disabled {
     opacity: 0.3;
     pointer-events: none;
     filter: grayscale(1);
+}
+
+.pile.drag-over {
+    border: 3px dashed var(--accent-gold) !important;
+    background: rgba(255, 234, 0, 0.2) !important;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--accent-gold);
 }
 
 #game-log-container {
