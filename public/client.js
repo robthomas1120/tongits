@@ -24,6 +24,7 @@ const sidePotCount = document.getElementById('side-pot-count');
 const discardPile = document.getElementById('discard-pile');
 const deckPile = document.getElementById('deck-pile');
 const dropAreaMain = document.getElementById('drop-area-main');
+const myScoreEl = document.getElementById('my-score');
 
 let myId = null;
 let selectedCards = new Set();
@@ -165,20 +166,20 @@ groupBtn.addEventListener('click', () => {
     const allSameGroup = firstGroupId && indices.every(i => myCards[i].groupId === firstGroupId);
 
     if (allSameGroup && indices.length > 1) {
+        // Ungroup
         indices.forEach(i => myCards[i].groupId = null);
     } else {
+        // Group
         const gid = nextGroupId++;
-        groups[gid] = { color: GROUP_COLORS[gid % GROUP_COLORS.length] };
         indices.forEach(i => myCards[i].groupId = gid);
 
+        // Move cards together in hand
         const targetIdx = indices[0];
         const cardsToMove = indices.map(i => myCards[i]);
         indices.reverse().forEach(i => myCards.splice(i, 1));
         myCards.splice(targetIdx, 0, ...cardsToMove);
-
         selectedCards.clear();
     }
-
     renderHand(myCards);
 });
 
@@ -282,6 +283,12 @@ function renderGameState(state) {
 
     stockCount.innerText = state.stockCount;
     sidePotCount.innerText = `$${state.sidePot.toLocaleString()}`;
+
+    // Update Personal Score
+    if (myScoreEl) {
+        const points = calculateHandPoints(myCards);
+        myScoreEl.innerText = `Points: ${points}`;
+    }
 
     // Game Over Overlay
     const overlay = document.getElementById('game-over-overlay') || createGameOverOverlay();
@@ -393,6 +400,61 @@ function findMatches(hand, card) {
     return matches;
 }
 
+function validateMeld(cards) {
+    if (cards.length < 3) return false;
+    return isSet(cards) || isRun(cards);
+}
+
+function isSet(cards) {
+    if (cards.length < 3 || cards.length > 4) return false;
+    const rank = cards[0].rank;
+    return cards.every(c => c.rank === rank);
+}
+
+function isRun(cards) {
+    if (cards.length < 3) return false;
+    const suit = cards[0].suit;
+    if (!cards.every(c => c.suit === suit)) return false;
+
+    const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const sorted = [...cards].sort((a, b) => RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank));
+    for (let i = 0; i < sorted.length - 1; i++) {
+        if (RANKS.indexOf(sorted[i + 1].rank) !== RANKS.indexOf(sorted[i].rank) + 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function calculateHandPoints(cards) {
+    const RANK_VALUES = {
+        'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
+    };
+
+    // Calculate total weight, subtracting valid groups
+    const meldedCardIndices = new Set();
+
+    // Check which groups are valid melds
+    const groupMap = {};
+    cards.forEach((c, i) => {
+        if (c.groupId) {
+            if (!groupMap[c.groupId]) groupMap[c.groupId] = [];
+            groupMap[c.groupId].push({ ...c, index: i });
+        }
+    });
+
+    for (const gid in groupMap) {
+        if (validateMeld(groupMap[gid])) {
+            groupMap[gid].forEach(c => meldedCardIndices.add(c.index));
+        }
+    }
+
+    return cards.reduce((sum, card, idx) => {
+        if (meldedCardIndices.has(idx)) return sum;
+        return sum + (RANK_VALUES[card.rank] || 0);
+    }, 0);
+}
+
 function updatePlayerSlot(slotId, player, isActive) {
     const slot = document.getElementById(slotId);
     if (!player) {
@@ -494,10 +556,27 @@ function renderHand(cards) {
         if (selectedCards.has(index)) cardEl.classList.add('selected');
 
         if (card.groupId) {
+            const groupCards = cards.filter(c => c.groupId === card.groupId);
+            const isValid = validateMeld(groupCards);
+
             const indicator = document.createElement('div');
             indicator.className = 'group-indicator';
-            indicator.style.backgroundColor = groups[card.groupId].color;
+            indicator.style.backgroundColor = isValid ? GROUP_COLORS[card.groupId % GROUP_COLORS.length] : '#888';
             cardEl.appendChild(indicator);
+
+            // One-Click Drop (Expose)
+            if (isValid && isMyTurn() && currentGameState.phase === 'action') {
+                indicator.style.cursor = 'pointer';
+                indicator.title = 'Click to Drop (Expose)';
+                indicator.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const indices = cards.map((c, i) => c.groupId === card.groupId ? i : -1).filter(i => i !== -1);
+                    const serverMe = currentGameState.players.find(p => p.id === myId);
+                    const serverIndices = mapLocalToSvrIdx(indices, myCards, serverMe.hand);
+                    socket.emit('expose-meld', { cardIndexes: serverIndices });
+                    selectedCards.clear();
+                });
+            }
         }
 
         cardEl.addEventListener('click', () => {
