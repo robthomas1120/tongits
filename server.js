@@ -181,7 +181,10 @@ io.on('connection', (socket) => {
 
         console.log(`Bot's turn in ${roomId}: ${currentPlayer.name} (${game.phase})`);
 
-        const botState = serializeGameState(game, currentPlayer.id);
+        // Hard bots get full game knowledge (all hands visible)
+        const botState = currentPlayer.difficulty === 'hard'
+            ? serializeGameStateForHardBot(game, currentPlayer.id)
+            : serializeGameState(game, currentPlayer.id);
         const decision = BotAI.getAction(currentPlayer, botState);
 
         if (game.phase === 'draw') {
@@ -203,7 +206,13 @@ io.on('connection', (socket) => {
             }
             broadcastUpdate(roomId);
         } else if (game.phase === 'action' && decision) {
-            if (decision.action === 'expose') {
+            if (decision.action === 'fight') {
+                // Hard bot calls fight
+                if (game.callFight(currentPlayer.id)) {
+                    console.log(`Bot ${currentPlayer.name} called FIGHT!`);
+                    broadcastUpdate(roomId);
+                }
+            } else if (decision.action === 'expose') {
                 game.exposeMeld(currentPlayer.id, decision.cardIndexes);
                 broadcastUpdate(roomId);
             } else if (decision.action === 'sapaw') {
@@ -261,6 +270,36 @@ function serializeGameState(game, forPlayerId) {
             type: p.type,
             handCount: p.hand.length,
             hand: (p.id === forPlayerId || game.status === 'ended') ? p.hand : [], // Send hand to owner OR if game ended
+            exposedMelds: p.exposedMelds,
+            chips: p.chips,
+            hasOpened: p.hasOpened,
+            openedThisTurn: p.openedThisTurn,
+            isBurned: p.isBurned
+        })),
+        discardPile: game.discardPile,
+        turnIndex: game.turnIndex,
+        phase: game.phase,
+        dealerIndex: game.dealerIndex,
+        stockCount: game.deck.count,
+        sidePot: game.sidePot,
+        status: game.status,
+        roundResults: game.roundResults,
+        logs: game.logs
+    };
+}
+
+/**
+ * Serialize game state for hard bots - they see ALL hands
+ */
+function serializeGameStateForHardBot(game, forPlayerId) {
+    return {
+        players: game.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            difficulty: p.difficulty,
+            handCount: p.hand.length,
+            hand: p.hand, // Hard bot sees ALL hands
             exposedMelds: p.exposedMelds,
             chips: p.chips,
             hasOpened: p.hasOpened,
