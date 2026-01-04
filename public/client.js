@@ -324,14 +324,17 @@ function renderGameState(state) {
         myScoreEl.innerText = `Points: ${points}`;
     }
 
-    // Handle game over
+    // Handle game over - show Play Again button AND score modal
+    const playAgainBtn = document.getElementById('play-again-btn');
     const overlay = document.getElementById('game-over-overlay') || createGameOverOverlay();
     if (state.status === 'ended' && state.roundResults) {
         gameScreen.classList.add('game-ended');  // Trigger CSS to show opponent hands
+        playAgainBtn.classList.remove('hidden');
         overlay.classList.remove('hidden');
         renderResults(overlay, state.roundResults);
     } else {
         gameScreen.classList.remove('game-ended');
+        playAgainBtn.classList.add('hidden');
         overlay.classList.add('hidden');
     }
 
@@ -543,6 +546,9 @@ function renderExposedMelds(slot, player) {
     player.exposedMelds.forEach((meld, meldIndex) => {
         const groupEl = document.createElement('div');
         groupEl.className = 'meld-group';
+        // Add data attributes for touch targeting
+        groupEl.dataset.playerId = player.id;
+        groupEl.dataset.meldIndex = meldIndex;
 
         // Sapaw click handler
         groupEl.addEventListener('click', () => handleSapawClick(player.id, meldIndex));
@@ -591,7 +597,13 @@ function renderHand(cards) {
         cardEl.addEventListener('dragstart', (e) => handleCardDragStart(e, cardEl, index));
         cardEl.addEventListener('dragend', () => cardEl.classList.remove('dragging'));
         cardEl.addEventListener('dragover', (e) => e.preventDefault());
+
         cardEl.addEventListener('drop', (e) => handleCardDrop(e, index));
+
+        // Touch Listener
+        cardEl.addEventListener('touchstart', (e) => handleTouchStart(e, cardEl, index), { passive: false });
+
+        // Apply just-drawn glow effect
 
         // Apply just-drawn glow effect
         if (lastDrawnCard && card.rank === lastDrawnCard.rank && card.suit === lastDrawnCard.suit) {
@@ -865,6 +877,11 @@ suggestBtn.addEventListener('click', () => {
     renderHand(myCards);
 });
 
+// Play Again button
+document.getElementById('play-again-btn').addEventListener('click', () => {
+    location.reload();
+});
+
 // --- Pile & Zone Listeners ---
 
 deckPile.addEventListener('dragover', (e) => {
@@ -989,19 +1006,21 @@ function createGameOverOverlay() {
     overlay.style.left = '50%';
     overlay.style.transform = 'translate(-50%, -50%)';
     overlay.style.zIndex = '20000';
-    overlay.style.minWidth = '300px';
+    overlay.style.minWidth = '280px';
+    overlay.style.maxWidth = '90%';
     overlay.style.pointerEvents = 'auto';
 
     overlay.innerHTML = `
-        <h2>Round Over</h2>
-        <div id="results-list" style="margin: 20px 0; text-align: left;"></div>
-        <button id="next-round-btn" class="primary-btn">Back to Lobby</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h2 style="margin: 0;">Round Over</h2>
+            <button id="close-results-btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 1.2rem; width: 30px; height: 30px; border-radius: 50%; cursor: pointer;">×</button>
+        </div>
+        <div id="results-list" style="margin: 10px 0; text-align: left;"></div>
     `;
     document.getElementById('game-container').appendChild(overlay);
 
-    document.getElementById('next-round-btn').addEventListener('click', () => {
+    document.getElementById('close-results-btn').addEventListener('click', () => {
         overlay.classList.add('hidden');
-        location.reload();
     });
 
     return overlay;
@@ -1099,8 +1118,150 @@ discardHistoryOverlay.addEventListener('click', (e) => {
 });
 
 // ============================================================================
-// 9. INITIALIZATION
+// 10. MOBILE TOUCH DRAG & DROP SUPPORT
 // ============================================================================
+
+let dragSrcEl = null;
+let touchDragItem = null;
+let touchGhost = null;
+let touchStartX = 0;
+let touchStartY = 0;
+
+function handleTouchStart(e, cardEl, index) {
+    if (e.touches.length > 1) return; // Ignore multi-touch
+
+    dragSrcEl = cardEl;
+    touchDragItem = { index: index, type: 'card' };
+
+    // Create ghost element
+    touchGhost = cardEl.cloneNode(true);
+    touchGhost.style.position = 'fixed';
+    touchGhost.style.zIndex = '10000';
+    touchGhost.style.pointerEvents = 'none';
+    touchGhost.style.opacity = '0.8';
+    touchGhost.style.transform = 'scale(1.1)';
+    touchGhost.style.width = getComputedStyle(cardEl).width;
+    touchGhost.style.height = getComputedStyle(cardEl).height;
+
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    updateGhostPosition(touch.clientX, touch.clientY);
+    document.body.appendChild(touchGhost);
+
+    cardEl.classList.add('dragging');
+
+    // Attach global listeners
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+
+    // Check if part of a group drag
+    if (selectedCards.has(index)) {
+        touchDragItem.type = 'group';
+        touchGhost.innerHTML += `<div style="position:absolute;top:-10px;right:-10px;background:red;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;">${selectedCards.size}</div>`;
+    }
+}
+
+function handleTouchMove(e) {
+    if (!touchGhost) return;
+    e.preventDefault(); // Prevent scrolling while dragging
+    const touch = e.touches[0];
+    updateGhostPosition(touch.clientX, touch.clientY);
+}
+
+function handleTouchEnd(e) {
+    if (!touchGhost) return;
+
+    const touch = e.changedTouches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    // Clean up
+    document.body.removeChild(touchGhost);
+    touchGhost = null;
+    if (dragSrcEl) {
+        dragSrcEl.classList.remove('dragging');
+        dragSrcEl = null;
+    }
+
+    // Remove global listeners
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+
+    if (!target) return;
+
+    // Find valid drop targets
+
+    // 1. Reorder in Hand
+    const targetCard = target.closest('.card');
+    if (targetCard && targetCard.parentNode.id === 'my-hand') {
+        const toIndex = parseInt(targetCard.dataset.index);
+        if (!isNaN(toIndex)) {
+            handleCardDrop({ preventDefault: () => { }, dataTransfer: { getData: () => touchDragItem.type === 'group' ? 'group' : touchDragItem.index } }, toIndex);
+        }
+    }
+
+    // 2. Discard Pile
+    const discardZone = target.closest('#discard-pile');
+    if (discardZone) {
+        if (touchDragItem.type !== 'group') {
+            performDiscard(touchDragItem.index);
+        }
+    }
+
+    // 3. Expose Zones
+    const exposeZone = target.closest('.expose-zone');
+    if (exposeZone) {
+        // Reuse the logic from the drop listener
+        if (touchDragItem.type === 'group') {
+            const indices = Array.from(selectedCards);
+            const cardsInGroup = indices.map(i => myCards[i]);
+            if (validateMeld(cardsInGroup)) {
+                const serverMe = currentGameState.players.find(p => p.id === myId);
+                const serverIndices = mapLocalToSvrIdx(indices, myCards, serverMe.hand);
+                socket.emit('expose-meld', { cardIndexes: serverIndices });
+                selectedCards.clear();
+            }
+        } else {
+            const card = myCards[touchDragItem.index];
+            if (card && card.groupId) {
+                const groupCards = myCards.filter(c => c.groupId === card.groupId);
+                if (validateMeld(groupCards)) {
+                    const indices = myCards.map((c, i) => c.groupId === card.groupId ? i : -1).filter(i => i !== -1);
+                    const serverMe = currentGameState.players.find(p => p.id === myId);
+                    const serverIndices = mapLocalToSvrIdx(indices, myCards, serverMe.hand);
+                    socket.emit('expose-meld', { cardIndexes: serverIndices });
+                    selectedCards.clear();
+                }
+            }
+        }
+    }
+
+    // 4. Opponent Melds (Sapaw)
+    const meldGroup = target.closest('.meld-group');
+    if (meldGroup) {
+        // Need to identify player and meld index. 
+        // Since handleSapawClick/Drop uses closures, we can't easily access the IDs from just the element.
+        // We might need to attach data attributes to the meld-group elements in renderExposedMelds function.
+
+        const playerId = meldGroup.dataset.playerId;
+        const meldIndex = parseInt(meldGroup.dataset.meldIndex);
+
+        if (playerId && !isNaN(meldIndex)) {
+            handleSapawDrop({ preventDefault: () => { }, dataTransfer: { getData: () => touchDragItem.type === 'group' ? 'group' : touchDragItem.index } }, playerId, meldIndex, meldGroup);
+        }
+    }
+
+    touchDragItem = null;
+}
+
+function updateGhostPosition(x, y) {
+    if (touchGhost) {
+        touchGhost.style.left = (x - touchGhost.offsetWidth / 2) + 'px';
+        touchGhost.style.top = (y - touchGhost.offsetHeight / 2) + 'px';
+    }
+}
+
 
 // Room UI Setup
 if (!roomId) {

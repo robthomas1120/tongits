@@ -717,7 +717,7 @@ screen and (max-height: 500px) {
     .card {
         width: 52px !important;
         height: 78px !important;
-        margin-left: -26px !important;
+        margin-left: -12px !important;
     }
 
     .card:first-child {
@@ -789,17 +789,44 @@ screen and (max-height: 500px) {
         padding: 2px 6px !important;
     }
 
-    /* Opponent players - move to top area to maximize space */
+    /* Opponent players - move to bottom left/right for better layout */
     #player-left {
-        left: 3px !important;
-        top: 20% !important;
-        transform: translateY(-50%) !important;
+        left: 5px !important;
+        top: auto !important;
+        bottom: 140px !important;
+        transform: none !important;
     }
 
     #player-right {
-        right: 3px !important;
-        top: 20% !important;
-        transform: translateY(-50%) !important;
+        right: 5px !important;
+        left: auto !important;
+        top: auto !important;
+        bottom: 140px !important;
+        transform: none !important;
+    }
+
+    /* Remove yellow border AND background on mobile - use pill glow instead */
+    .player-slot.active-turn {
+        border-color: transparent !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    /* Breathing glow on player info pill when it's your turn */
+    #player-bottom.active-turn .player-info-card-compact {
+        animation: pill-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pill-glow {
+
+        0%,
+        100% {
+            box-shadow: 0 0 5px rgba(255, 234, 0, 0.3);
+        }
+
+        50% {
+            box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-gold);
+        }
     }
 
     .player-slot.opponent {
@@ -1112,6 +1139,32 @@ screen and (max-height: 500px) {
     transform: rotate(90deg);
 }
 
+#controls button.action-red:not(:disabled) {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.3) 0%, rgba(200, 50, 60, 0.4) 100%);
+    border-color: #ff4757;
+    color: #ff4757;
+}
+
+#controls button.action-gold {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.4) 0%, rgba(255, 180, 0, 0.5) 100%);
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    font-weight: bold;
+    animation: pulse-gold 1.5s infinite;
+}
+
+@keyframes pulse-gold {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px var(--accent-gold);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-gold);
+    }
+}
+
 .modal-controls {
     margin-bottom: 15px;
     display: flex;
@@ -1210,5 +1263,69 @@ screen and (max-height: 500px) {
     .discard-card-grid .card {
         width: 55px !important;
         height: 80px !important;
+    }
+}
+
+/* Mobile Game End State */
+@media screen and (max-width: 926px) {
+    .game-ended .hand-mini {
+        padding: 3px !important;
+        gap: 2px !important;
+        margin-top: 3px !important;
+        max-width: 160px;
+        overflow: visible !important;
+        flex-wrap: wrap !important;
+    }
+
+    .game-ended .hand-mini .card-mini {
+        width: 22px !important;
+        height: 32px !important;
+        min-width: 22px;
+        font-size: 0.4rem !important;
+        margin: 1px !important;
+    }
+
+    .game-ended .hand-mini .card-mini .rank {
+        font-size: 0.55rem !important;
+    }
+
+    .game-ended .hand-mini .card-mini .suit-main {
+        font-size: 0.7rem !important;
+    }
+
+    /* Reposition player slots at game end for visibility */
+    .game-ended #player-left,
+    .game-ended #player-right {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 160px !important;
+        transform: none !important;
+        width: 48% !important;
+        max-width: 200px;
+    }
+
+    .game-ended #player-left {
+        left: 2% !important;
+    }
+
+    .game-ended #player-right {
+        right: 2% !important;
+        left: auto !important;
+    }
+
+    /* Game Over Overlay - Mobile Friendly */
+    .game-ended #game-over-overlay {
+        max-height: 60vh !important;
+        overflow-y: auto !important;
+        width: 90% !important;
+        padding: 15px !important;
+    }
+
+    .game-ended #game-over-overlay h2 {
+        font-size: 1.2rem !important;
+    }
+
+    .game-ended #results-list {
+        font-size: 0.85rem !important;
     }
 }
