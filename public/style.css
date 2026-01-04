@@ -437,10 +437,82 @@ button:disabled {
     }
 }
 
+/* Newly Drawn Card Breathing Glow */
+.card.just-drawn {
+    animation: drawn-glow 2s ease-in-out;
+}
+
+@keyframes drawn-glow {
+    0% {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    25% {
+        box-shadow: 0 0 30px var(--accent-gold), 0 0 60px var(--accent-gold), 0 0 10px var(--accent-gold) inset;
+        transform: scale(1.08);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--accent-gold), 0 0 40px var(--accent-gold);
+        transform: scale(1.03);
+    }
+
+    75% {
+        box-shadow: 0 0 30px var(--accent-gold), 0 0 60px var(--accent-gold), 0 0 10px var(--accent-gold) inset;
+        transform: scale(1.08);
+    }
+
+    100% {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        transform: scale(1);
+    }
+}
+
 .exposed-melds-mini,
 .hand-mini {
     display: none;
     /* Hide redundant elements to clean up row layout */
+}
+
+/* Show opponent hands when game ends */
+.game-ended .hand-mini {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Style revealed cards at game end */
+.game-ended .hand-mini .card-mini {
+    width: 45px;
+    height: 65px;
+    font-size: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    color: var(--card-black);
+    /* Default black text */
+}
+
+.game-ended .hand-mini .card-mini.red {
+    color: var(--card-red);
+}
+
+.game-ended .hand-mini .card-mini .rank {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.game-ended .hand-mini .card-mini .suit-main {
+    font-size: 1rem;
 }
 
 .hand-area {
@@ -950,6 +1022,7 @@ screen and (max-height: 500px) {
     font-size: 0.6rem;
     color: #ccc;
 }
+
 /* Discard History Modal */
 .discard-history-overlay {
     position: fixed;
@@ -967,8 +1040,13 @@ screen and (max-height: 500px) {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .discard-history-modal {
@@ -986,8 +1064,15 @@ screen and (max-height: 500px) {
 }
 
 @keyframes slideUp {
-    from { transform: translateY(50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .modal-header {

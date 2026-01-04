@@ -260,7 +260,7 @@ function serializeGameState(game, forPlayerId) {
             name: p.name,
             type: p.type,
             handCount: p.hand.length,
-            hand: p.id === forPlayerId ? p.hand : [], // Only send hand to owner
+            hand: (p.id === forPlayerId || game.status === 'ended') ? p.hand : [], // Send hand to owner OR if game ended
             exposedMelds: p.exposedMelds,
             chips: p.chips,
             hasOpened: p.hasOpened,

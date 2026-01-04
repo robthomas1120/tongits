@@ -86,6 +86,7 @@ let nextGroupId = 1;
 let sortMode = 'rank';
 let suggestionsEnabled = true;
 let isSortedBySuit = false;
+let lastDrawnCard = null;   // Track the most recently drawn card for glow effect
 
 // Room ID from URL
 const urlParams = new URLSearchParams(window.location.search);
@@ -326,9 +327,11 @@ function renderGameState(state) {
     // Handle game over
     const overlay = document.getElementById('game-over-overlay') || createGameOverOverlay();
     if (state.status === 'ended' && state.roundResults) {
+        gameScreen.classList.add('game-ended');  // Trigger CSS to show opponent hands
         overlay.classList.remove('hidden');
         renderResults(overlay, state.roundResults);
     } else {
+        gameScreen.classList.remove('game-ended');
         overlay.classList.add('hidden');
     }
 
@@ -380,6 +383,20 @@ function renderDiscardPile(state) {
  * Sync local hand with server hand
  */
 function syncHand(serverHand) {
+    // Detect newly drawn card (hand size increased by exactly 1, and we already had cards)
+    // This prevents false glow on initial deal when myCards goes from 0 to 12
+    if (serverHand.length > myCards.length && myCards.length > 0 && (serverHand.length - myCards.length) === 1) {
+        // Find the new card - compare server hand with local hand
+        const localCardKeys = new Set(myCards.map(c => `${c.rank}-${c.suit}`));
+        for (const card of serverHand) {
+            const key = `${card.rank}-${card.suit}`;
+            if (!localCardKeys.has(key)) {
+                lastDrawnCard = { rank: card.rank, suit: card.suit };
+                break; // Only track the first new card
+            }
+        }
+    }
+
     if (myCards.length !== serverHand.length) {
         const oldGroups = myCards.map(c => ({ rank: c.rank, suit: c.suit, gid: c.groupId }));
         myCards = serverHand.map(c => {
@@ -486,15 +503,28 @@ function updatePlayerSlot(slotId, player, isActive) {
     if (nameEl) nameEl.innerText = player.name;
     if (chipsEl) chipsEl.innerText = `$${player.chips.toLocaleString()}`;
 
-    // Render opponent hand (card backs)
+    // Render opponent hand (card backs OR actual cards if game ended)
     if (slotId !== 'player-bottom') {
         const handMini = slot.querySelector('.hand-mini');
         handMini.innerHTML = '';
-        const count = player.handCount || (player.hand ? player.hand.length : 0);
-        for (let i = 0; i < count; i++) {
-            const card = document.createElement('div');
-            card.className = 'card-mini';
-            handMini.appendChild(card);
+
+        // Check if game ended - show actual cards
+        if (currentGameState && currentGameState.status === 'ended' && player.hand && player.hand.length > 0) {
+            // Show actual cards face-up
+            player.hand.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = `card-mini ${['♥', '♦'].includes(card.suit) ? 'red' : ''}`;
+                cardEl.innerHTML = `<span class="rank">${card.rank}</span><span class="suit-main">${card.suit}</span>`;
+                handMini.appendChild(cardEl);
+            });
+        } else {
+            // Show card backs during game
+            const count = player.handCount || (player.hand ? player.hand.length : 0);
+            for (let i = 0; i < count; i++) {
+                const card = document.createElement('div');
+                card.className = 'card-mini';
+                handMini.appendChild(card);
+            }
         }
     }
 
@@ -563,8 +593,16 @@ function renderHand(cards) {
         cardEl.addEventListener('dragover', (e) => e.preventDefault());
         cardEl.addEventListener('drop', (e) => handleCardDrop(e, index));
 
+        // Apply just-drawn glow effect
+        if (lastDrawnCard && card.rank === lastDrawnCard.rank && card.suit === lastDrawnCard.suit) {
+            cardEl.classList.add('just-drawn');
+        }
+
         myHand.appendChild(cardEl);
     });
+
+    // Clear the drawn card tracker after rendering
+    lastDrawnCard = null;
 }
 
 /**
