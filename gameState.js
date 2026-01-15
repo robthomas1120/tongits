@@ -66,10 +66,8 @@ class GameSession {
 
         this.phase = 'draw'; // draw, action, discard
 
-        // Initial bet to side pot
+        // Initialize player state for new round
         this.players.forEach(p => {
-            p.chips -= 2;
-            this.sidePot += 2;
             p.hand = [];
             p.exposedMelds = [];
             p.hasOpened = false;
@@ -165,6 +163,10 @@ class GameSession {
 
         if (player.hand.length === 0) {
             this.endRound(player, 'tongit');
+        } else if (this.deck.count === 0) {
+            // Stock is empty after discard - end round immediately
+            this.addLog("Stock pile is empty. Round ending...");
+            this.endRound(null, 'deck-empty');
         } else {
             this.nextTurn();
             this.phase = 'draw';

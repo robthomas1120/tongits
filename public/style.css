@@ -1272,6 +1272,25 @@ button:disabled {
     box-shadow: 0 0 20px var(--accent-gold-glow);
 }
 
+/* Draw pile glow when user tries to discard without drawing */
+.pile.needs-draw {
+    animation: needs-draw-pulse 0.5s ease-in-out 3;
+}
+
+@keyframes needs-draw-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px var(--accent-gold-glow);
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 30px var(--accent-gold), 0 0 50px var(--accent-gold-glow);
+        transform: scale(1.05);
+    }
+}
+
 /* ===================== */
 /* MOBILE RESPONSIVE     */
 /* ===================== */

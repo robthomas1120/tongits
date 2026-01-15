@@ -59,7 +59,7 @@ const discardBtn = document.getElementById('discard-btn');
 const myHand = document.getElementById('my-hand');
 const gameLog = document.getElementById('game-log');
 const stockCount = document.getElementById('stock-count');
-const sidePotCount = document.getElementById('side-pot-count');
+// sidePotCount removed - no money system
 const discardPile = document.getElementById('discard-pile');
 const deckPile = document.getElementById('deck-pile');
 const dropAreaMain = document.getElementById('drop-area-main');
@@ -224,12 +224,30 @@ function isRun(cards) {
 }
 
 /**
- * Calculate total points in hand (excluding valid grouped melds)
+ * Calculate total points in hand (auto-detecting best possible melds)
+ * This intelligently finds the optimal melds to minimize score
  */
 function calculateHandPoints(cards) {
-    const meldedCardIndices = new Set();
-    const groupMap = {};
+    if (cards.length === 0) return 0;
 
+    // Find all possible melds automatically
+    const meldedIndices = findOptimalMelds(cards);
+
+    return cards.reduce((sum, card, idx) => {
+        if (meldedIndices.has(idx)) return sum;
+        return sum + (RANK_VALUES[card.rank] || 0);
+    }, 0);
+}
+
+/**
+ * Find optimal melds in hand using greedy algorithm
+ * Returns a Set of card indices that are part of valid melds
+ */
+function findOptimalMelds(cards) {
+    const meldedIndices = new Set();
+
+    // First, check manually grouped cards (user's explicit groupings)
+    const groupMap = {};
     cards.forEach((c, i) => {
         if (c.groupId) {
             if (!groupMap[c.groupId]) groupMap[c.groupId] = [];
@@ -239,14 +257,71 @@ function calculateHandPoints(cards) {
 
     for (const gid in groupMap) {
         if (validateMeld(groupMap[gid])) {
-            groupMap[gid].forEach(c => meldedCardIndices.add(c.index));
+            groupMap[gid].forEach(c => meldedIndices.add(c.index));
         }
     }
 
-    return cards.reduce((sum, card, idx) => {
-        if (meldedCardIndices.has(idx)) return sum;
-        return sum + (RANK_VALUES[card.rank] || 0);
-    }, 0);
+    // Now find additional melds from ungrouped cards
+    const ungroupedCards = cards.map((c, i) => ({ ...c, originalIndex: i }))
+        .filter((_, i) => !meldedIndices.has(i));
+
+    // Sort by suit then rank for run detection
+    const sorted = [...ungroupedCards].sort((a, b) => {
+        if (a.suit !== b.suit) return a.suit.localeCompare(b.suit);
+        return RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank);
+    });
+
+    const usedInAutoMeld = new Set();
+
+    // Find runs (consecutive cards of same suit)
+    for (let i = 0; i < sorted.length; i++) {
+        if (usedInAutoMeld.has(sorted[i].originalIndex)) continue;
+
+        let run = [sorted[i]];
+        for (let j = i + 1; j < sorted.length; j++) {
+            if (usedInAutoMeld.has(sorted[j].originalIndex)) continue;
+            const last = run[run.length - 1];
+            if (sorted[j].suit === last.suit &&
+                RANKS.indexOf(sorted[j].rank) === RANKS.indexOf(last.rank) + 1) {
+                run.push(sorted[j]);
+            }
+        }
+
+        if (run.length >= 3) {
+            run.forEach(c => {
+                meldedIndices.add(c.originalIndex);
+                usedInAutoMeld.add(c.originalIndex);
+            });
+        }
+    }
+
+    // Find sets (3-4 cards of same rank) from remaining ungrouped cards
+    const remaining = ungroupedCards.filter(c => !usedInAutoMeld.has(c.originalIndex));
+    const byRank = {};
+    remaining.forEach(c => {
+        if (!byRank[c.rank]) byRank[c.rank] = [];
+        byRank[c.rank].push(c);
+    });
+
+    for (const rank in byRank) {
+        if (byRank[rank].length >= 3) {
+            byRank[rank].forEach(c => meldedIndices.add(c.originalIndex));
+        }
+    }
+
+    return meldedIndices;
+}
+
+/**
+ * Update the score display to show current hand points
+ */
+function updateMyScore() {
+    if (myScoreEl && myCards.length > 0) {
+        const points = calculateHandPoints(myCards);
+        myScoreEl.innerText = `${points} pts`;
+    } else if (myScoreEl) {
+        myScoreEl.innerText = '0 pts';
+    }
 }
 
 /**
@@ -316,13 +391,9 @@ function renderGameState(state) {
 
     // Update counters
     stockCount.innerText = state.stockCount;
-    sidePotCount.innerText = `$${state.sidePot.toLocaleString()}`;
 
-    // Update personal score
-    if (myScoreEl) {
-        const points = calculateHandPoints(myCards);
-        myScoreEl.innerText = `Points: ${points}`;
-    }
+    // Update personal score (excluding valid grouped melds)
+    updateMyScore();
 
     // Handle game over - show Play Again button AND score modal
     const playAgainBtn = document.getElementById('play-again-btn');
@@ -344,6 +415,9 @@ function renderGameState(state) {
     // Sync hand with server
     syncHand(me.hand);
     renderHand(myCards);
+
+    // Update score again after sync to reflect current hand
+    updateMyScore();
 
     // Update control buttons
     const myTurn = state.players[state.turnIndex].id === myId;
@@ -501,10 +575,7 @@ function updatePlayerSlot(slotId, player, isActive) {
     slot.classList.toggle('active-turn', isActive);
 
     const nameEl = slot.querySelector('.name') || document.getElementById('my-name');
-    const chipsEl = slot.querySelector('.chips') || document.getElementById('my-chips');
-
     if (nameEl) nameEl.innerText = player.name;
-    if (chipsEl) chipsEl.innerText = `$${player.chips.toLocaleString()}`;
 
     // Render opponent hand (card backs OR actual cards if game ended)
     if (slotId !== 'player-bottom') {
@@ -811,6 +882,12 @@ drawDiscardBtn.addEventListener('click', () => {
 });
 
 discardBtn.addEventListener('click', () => {
+    // Check if we're in draw phase - need to draw first
+    if (currentGameState && currentGameState.phase === 'draw' && isMyTurn()) {
+        highlightDrawPile();
+        return;
+    }
+
     if (selectedCards.size === 1) {
         const selectedCard = myCards[Array.from(selectedCards)[0]];
         const serverMe = currentGameState.players.find(p => p.id === myId);
@@ -823,6 +900,19 @@ discardBtn.addEventListener('click', () => {
         alert('Select 1 card to discard.');
     }
 });
+
+/**
+ * Highlight draw pile to indicate user needs to draw first
+ */
+function highlightDrawPile() {
+    const deckPileEl = document.getElementById('deck-pile');
+    if (deckPileEl) {
+        deckPileEl.classList.add('needs-draw');
+        setTimeout(() => {
+            deckPileEl.classList.remove('needs-draw');
+        }, 1500);
+    }
+}
 
 sortBtn.addEventListener('click', () => {
     sortMode = sortMode === 'rank' ? 'suit' : 'rank';
@@ -860,6 +950,7 @@ groupBtn.addEventListener('click', () => {
         selectedCards.clear();
     }
     renderHand(myCards);
+    updateMyScore();
 });
 
 exposeBtn.addEventListener('click', () => {
@@ -904,12 +995,23 @@ discardPile.addEventListener('dragover', (e) => {
     if (isMyTurn() && currentGameState.phase === 'action') {
         e.preventDefault();
         discardPile.classList.add('drag-over');
+    } else if (isMyTurn() && currentGameState.phase === 'draw') {
+        // User is trying to discard but needs to draw first
+        e.preventDefault();
+        highlightDrawPile();
     }
 });
 discardPile.addEventListener('dragleave', () => discardPile.classList.remove('drag-over'));
 discardPile.addEventListener('drop', (e) => {
     e.preventDefault();
     discardPile.classList.remove('drag-over');
+
+    // Check if we're in draw phase - need to draw first
+    if (isMyTurn() && currentGameState.phase === 'draw') {
+        highlightDrawPile();
+        return;
+    }
+
     const data = e.dataTransfer.getData('text/plain');
     if (data === 'group') return;
     const localIdx = parseInt(data);
