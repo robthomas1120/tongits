@@ -897,11 +897,11 @@ button:disabled {
 
     0%,
     100% {
-        box-shadow: 0 0 0 0 var(--accent-gold-glow);
+        box-shadow: 0 0 8px var(--accent-gold-glow);
     }
 
     50% {
-        box-shadow: 0 0 20px var(--accent-gold-glow);
+        box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-gold-glow);
     }
 }
 
@@ -921,33 +921,33 @@ button:disabled {
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     padding: 10px 24px;
-    border-radius: 100px;
+    border-radius: var(--radius-xl);
     border: 1px solid var(--glass-border);
     pointer-events: all;
     display: flex;
     gap: 16px;
     align-items: center;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 #player-bottom.active-turn .player-info-card-compact {
     border-color: var(--accent-gold);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 25px var(--accent-gold-glow);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px var(--accent-gold-glow);
 }
 
 #my-name {
     font-weight: 600;
-    color: var(--text-primary);
+    font-size: 0.9rem;
 }
 
 #my-chips {
     color: var(--accent-gold);
     font-weight: 600;
+    font-size: 0.9rem;
 }
 
 .points-badge {
-    background: rgba(212, 168, 83, 0.1);
+    background: rgba(212, 168, 83, 0.12);
     color: var(--accent-gold);
     padding: 4px 12px;
     border-radius: 100px;
@@ -962,9 +962,9 @@ button:disabled {
     justify-content: center;
     align-items: center;
     pointer-events: all;
-    background: linear-gradient(to top, rgba(10, 10, 15, 0.8) 0%, transparent 100%);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
     padding-bottom: 20px;
-    gap: 15px;
+    gap: 16px;
 }
 
 .expose-zone {
@@ -972,14 +972,14 @@ button:disabled {
     height: 100px;
     border: 2px dashed rgba(255, 255, 255, 0.15);
     border-radius: var(--radius-lg);
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-weight: 700;
+    font-weight: 600;
     font-size: 0.8rem;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.15em;
     transition: all 0.3s ease;
     user-select: none;
 }
@@ -1010,7 +1010,7 @@ button:disabled {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin-top: 5px;
+    margin-top: 8px;
     justify-content: center;
 }
 
@@ -1026,7 +1026,7 @@ button:disabled {
 
 .meld-group:hover,
 .meld-group.drag-over {
-    transform: scale(1.08);
+    transform: scale(1.05);
     background: rgba(212, 168, 83, 0.15);
     border-color: var(--accent-gold);
     box-shadow: 0 0 15px var(--accent-gold-glow);
@@ -1049,11 +1049,19 @@ button:disabled {
     align-items: center;
     justify-content: center;
     padding: 2px;
+    border: 1px solid #ddd;
     border-radius: 4px;
     margin-left: -6px;
     position: relative;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.meld-group .card-mini:first-child {
+    margin-left: 0;
+}
+
+.meld-group .card-mini.red {
+    color: var(--card-red);
 }
 
 .meld-group .card-mini .rank {
@@ -1066,32 +1074,6 @@ button:disabled {
 
 .meld-group .card-mini .suit-main {
     font-size: 1.1rem;
-}
-
-.meld-group .card-mini:first-child {
-    margin-left: 0;
-}
-
-.meld-group .card-mini.red {
-    color: var(--card-red);
-}
-
-/* ===================== */
-/* PILE INTERACTIONS     */
-/* ===================== */
-
-.pile.disabled,
-.button.disabled {
-    opacity: 0.3;
-    pointer-events: none;
-    filter: grayscale(1);
-}
-
-.pile.drag-over {
-    border: 3px dashed var(--accent-gold) !important;
-    background: rgba(212, 168, 83, 0.15) !important;
-    transform: scale(1.08);
-    box-shadow: 0 0 25px var(--accent-gold-glow);
 }
 
 /* ===================== */
@@ -1113,7 +1095,7 @@ button:disabled {
 #game-log {
     font-size: 0.6rem;
     color: var(--text-secondary);
-    line-height: 1.6;
+    line-height: 1.4;
 }
 
 /* ===================== */
@@ -1126,7 +1108,7 @@ button:disabled {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(10, 10, 15, 0.9);
+    background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(12px);
     z-index: 15000;
     display: flex;
@@ -1146,16 +1128,16 @@ button:disabled {
 }
 
 .discard-history-modal {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 24px;
     max-width: 560px;
     width: 90%;
-    max-height: 80vh;
+    max-height: 75vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
     animation: slideUp 0.3s ease;
 }
 
@@ -1176,25 +1158,24 @@ button:disabled {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    padding-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--glass-border);
 }
 
 .modal-header h3 {
-    font-family: "Playfair Display", serif;
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
     margin: 0;
 }
 
 .close-btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-elevated);
     border: 1px solid var(--glass-border);
     color: var(--text-secondary);
     width: 36px;
     height: 36px;
-    border-radius: 50%;
+    border-radius: var(--radius-md);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1215,33 +1196,34 @@ button:disabled {
 }
 
 .sort-toggle-btn {
-    background: rgba(212, 168, 83, 0.1);
-    border: 1px solid rgba(212, 168, 83, 0.2);
-    color: var(--accent-gold);
+    background: var(--bg-elevated);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
     padding: 10px 20px;
     border-radius: var(--radius-md);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     transition: all 0.2s;
 }
 
 .sort-toggle-btn:hover {
-    background: rgba(212, 168, 83, 0.2);
+    background: rgba(255, 255, 255, 0.08);
     border-color: var(--accent-gold);
 }
 
 .toggle-icon {
-    font-size: 1.1rem;
+    font-size: 1rem;
+    opacity: 0.7;
 }
 
 .discard-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+    gap: 10px;
     overflow-y: auto;
     padding: 12px;
     background: rgba(0, 0, 0, 0.2);
@@ -1255,19 +1237,20 @@ button:disabled {
 
 .discard-card-grid::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 100px;
+    border-radius: 10px;
 }
 
 .discard-card-grid::-webkit-scrollbar-thumb {
     background: var(--accent-gold);
-    border-radius: 100px;
+    border-radius: 10px;
 }
 
 .discard-card-grid .card {
-    width: 70px !important;
-    height: 100px !important;
+    width: 65px !important;
+    height: 95px !important;
     margin: 0 !important;
     cursor: default;
+    transition: transform 0.2s;
 }
 
 .discard-card-grid .card:hover {
@@ -1275,49 +1258,41 @@ button:disabled {
     z-index: 10;
 }
 
-/* ================================ */
-/* MOBILE & LANDSCAPE RESPONSIVE   */
-/* ================================ */
+/* Pile Interaction */
+.pile.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    filter: grayscale(1);
+}
+
+.pile.drag-over {
+    border: 2px dashed var(--accent-gold) !important;
+    background: rgba(212, 168, 83, 0.15) !important;
+    transform: scale(1.08);
+    box-shadow: 0 0 20px var(--accent-gold-glow);
+}
+
+/* ===================== */
+/* MOBILE RESPONSIVE     */
+/* ===================== */
 
 @media screen and (max-width: 926px),
 screen and (max-height: 500px) {
 
-    /* Lobby */
-    .glass-panel {
-        padding: 1.75rem;
-        border-radius: var(--radius-lg);
-    }
-
-    .logo-mark {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-
-    .glass-panel h1 {
-        font-size: 1.5rem;
-    }
-
-    /* Table */
     .table-felt {
         width: 100% !important;
-        height: 93% !important;
-        border-radius: 30px !important;
+        height: 94% !important;
+        border-radius: 20px !important;
         border-width: 8px !important;
     }
 
-    /* Controls - compact single row */
+    /* Controls */
     #controls {
         padding: 6px 8px !important;
     }
 
     .controls-inner {
-        flex-wrap: nowrap !important;
-        overflow-x: auto;
-        gap: 6px !important;
-        justify-content: flex-start;
-        padding-bottom: 2px;
-        -webkit-overflow-scrolling: touch;
+        gap: 4px !important;
     }
 
     .controls-divider {
@@ -1325,33 +1300,30 @@ screen and (max-height: 500px) {
     }
 
     .ctrl-btn {
-        padding: 8px 12px !important;
+        padding: 8px 10px !important;
         font-size: 0.7rem !important;
-        min-width: auto !important;
-        flex: 0 0 auto !important;
+        min-width: 55px !important;
         border-radius: var(--radius-sm) !important;
-        white-space: nowrap !important;
     }
 
     .action-btns {
         display: flex !important;
-        gap: 6px !important;
+        gap: 4px !important;
     }
 
     /* Center board */
     #center-board {
-        top: 28% !important;
+        top: 26% !important;
         transform: translate(-50%, -50%) scale(0.6) !important;
-        gap: 14px !important;
     }
 
     .pot-area {
-        padding: 6px 16px !important;
-        min-width: 70px !important;
+        padding: 6px 14px !important;
+        min-width: 90px !important;
     }
 
     .pot-label {
-        font-size: 0.55rem !important;
+        font-size: 0.6rem !important;
     }
 
     #side-pot-count {
@@ -1359,12 +1331,12 @@ screen and (max-height: 500px) {
     }
 
     .piles-container {
-        gap: 20px !important;
+        gap: 16px !important;
     }
 
     .pile {
-        width: 55px !important;
-        height: 78px !important;
+        width: 52px !important;
+        height: 72px !important;
     }
 
     .pile-label {
@@ -1373,15 +1345,14 @@ screen and (max-height: 500px) {
 
     #stock-count {
         font-size: 0.85rem !important;
-        padding: 2px 8px !important;
+        padding: 3px 8px !important;
     }
 
-    /* Cards - mobile optimized */
+    /* Cards */
     .card {
-        width: 54px !important;
-        height: 80px !important;
-        margin-left: -14px !important;
-        border-radius: 5px !important;
+        width: 50px !important;
+        height: 75px !important;
+        margin-left: -10px !important;
     }
 
     .card:first-child {
@@ -1389,22 +1360,18 @@ screen and (max-height: 500px) {
     }
 
     .card .rank {
-        font-size: 0.8rem !important;
+        font-size: 0.75rem !important;
         top: 3px !important;
         left: 5px !important;
     }
 
     .card .suit-main {
-        font-size: 1.7rem !important;
-    }
-
-    .card.selected {
-        transform: translateY(-28px) !important;
+        font-size: 1.6rem !important;
     }
 
     /* Hand area */
     .hand-area {
-        height: 100px !important;
+        height: 90px !important;
         padding: 0 8px !important;
     }
 
@@ -1413,10 +1380,10 @@ screen and (max-height: 500px) {
         padding-bottom: 8px !important;
     }
 
-    /* Expose zones - minimal */
+    /* Expose zones */
     .expose-zone {
         width: 55px !important;
-        height: 85px !important;
+        height: 80px !important;
         font-size: 0 !important;
         border-width: 1px !important;
         opacity: 0.4 !important;
@@ -1433,21 +1400,21 @@ screen and (max-height: 500px) {
     /* Bottom player */
     #player-bottom {
         bottom: 0 !important;
-        width: 100% !important;
+        width: 98% !important;
     }
 
     .player-info-footer {
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
 
     .player-info-card-compact {
-        padding: 6px 16px !important;
+        padding: 6px 14px !important;
         gap: 10px !important;
         font-size: 0.75rem !important;
     }
 
     .points-badge {
-        font-size: 0.65rem !important;
+        font-size: 0.7rem !important;
         padding: 3px 8px !important;
     }
 
@@ -1455,7 +1422,7 @@ screen and (max-height: 500px) {
     #player-left {
         left: 8px !important;
         top: auto !important;
-        bottom: 130px !important;
+        bottom: 135px !important;
         transform: none !important;
     }
 
@@ -1463,30 +1430,28 @@ screen and (max-height: 500px) {
         right: 8px !important;
         left: auto !important;
         top: auto !important;
-        bottom: 130px !important;
+        bottom: 135px !important;
         transform: none !important;
     }
 
-    /* Turn indicator - mobile style */
     .player-slot.active-turn {
-        border-color: transparent !important;
         box-shadow: none !important;
         background: transparent !important;
     }
 
     #player-bottom.active-turn .player-info-card-compact {
-        animation: mobile-turn-glow 2s ease-in-out infinite;
+        animation: pill-glow 2s ease-in-out infinite;
     }
 
-    @keyframes mobile-turn-glow {
+    @keyframes pill-glow {
 
         0%,
         100% {
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 8px var(--accent-gold-glow);
         }
 
         50% {
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 30px var(--accent-gold-glow);
+            box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-gold-glow);
         }
     }
 
@@ -1497,37 +1462,27 @@ screen and (max-height: 500px) {
     .player-info-card {
         padding: 6px 10px !important;
         gap: 8px !important;
-        min-width: auto !important;
+        min-width: 100px !important;
     }
 
-    .avatar {
+    .player-info-card .avatar {
         width: 28px !important;
         height: 28px !important;
         font-size: 0.9rem !important;
     }
 
-    .details .name {
+    .player-info-card .details .name {
         font-size: 0.7rem !important;
     }
 
-    .details .chips {
-        font-size: 0.6rem !important;
+    .player-info-card .details .chips {
+        font-size: 0.65rem !important;
     }
 
-    /* Mini cards */
-    .hand-mini {
-        gap: 2px !important;
-    }
-
-    .card-mini-back {
-        width: 18px !important;
-        height: 28px !important;
-    }
-
-    /* Exposed melds - compact */
+    /* Exposed melds */
     .exposed-melds {
         gap: 5px !important;
-        margin-top: 3px !important;
+        margin-top: 4px !important;
     }
 
     .meld-group {
@@ -1552,11 +1507,10 @@ screen and (max-height: 500px) {
 
     /* Game log */
     #game-log-container {
-        top: 48px !important;
-        right: 6px !important;
-        width: 110px !important;
+        top: 50px !important;
+        right: 5px !important;
+        width: 120px !important;
         max-height: 60px !important;
-        opacity: 0.4 !important;
     }
 
     #game-log {
@@ -1566,71 +1520,20 @@ screen and (max-height: 500px) {
     /* Group indicator */
     .group-indicator {
         height: 3px !important;
-        bottom: 2px !important;
+        bottom: -4px !important;
     }
 
-    /* Results overlay */
-    .results-overlay {
-        padding: 16px !important;
-        max-width: 92% !important;
-        border-radius: var(--radius-lg) !important;
-    }
-
-    .results-overlay h2 {
-        font-size: 1.1rem !important;
-    }
-
-    /* My exposed melds */
-    #my-exposed-melds {
-        margin-top: 4px !important;
-    }
-
-    /* Modal adjustments */
-    .discard-history-modal {
-        max-width: 95%;
-        padding: 16px;
-        border-radius: var(--radius-lg);
-    }
-
-    .modal-header h3 {
-        font-size: 1rem;
-    }
-
-    .close-btn {
-        width: 32px;
-        height: 32px;
-    }
-
-    .sort-toggle-btn {
-        padding: 8px 14px;
-        font-size: 0.75rem;
-    }
-
-    .discard-card-grid {
-        grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
-        gap: 8px;
-    }
-
-    .discard-card-grid .card {
-        width: 52px !important;
-        height: 76px !important;
-    }
-}
-
-/* Game End State - Mobile */
-@media screen and (max-width: 926px) {
+    /* Game end state */
     .game-ended .hand-mini {
         padding: 4px !important;
-        gap: 3px !important;
+        gap: 2px !important;
         margin-top: 4px !important;
         max-width: 150px;
-        flex-wrap: wrap !important;
     }
 
     .game-ended .hand-mini .card-mini {
         width: 24px !important;
         height: 34px !important;
-        margin: 1px !important;
     }
 
     .game-ended .hand-mini .card-mini .rank {
@@ -1641,59 +1544,33 @@ screen and (max-height: 500px) {
         font-size: 0.7rem !important;
     }
 
-    .game-ended #player-left,
-    .game-ended #player-right {
-        position: fixed !important;
-        top: auto !important;
-        bottom: 150px !important;
-        transform: none !important;
-        width: 47% !important;
-        max-width: 180px;
-    }
-
-    .game-ended #player-left {
-        left: 2% !important;
-    }
-
-    .game-ended #player-right {
-        right: 2% !important;
-        left: auto !important;
-    }
-
-    .game-ended #game-over-overlay {
-        max-height: 65vh !important;
-        overflow-y: auto !important;
-        width: 92% !important;
+    /* Discard modal */
+    .discard-history-modal {
+        max-width: 95% !important;
         padding: 16px !important;
     }
 
-    .game-ended #game-over-overlay h2 {
-        font-size: 1.1rem !important;
+    .modal-header h3 {
+        font-size: 0.95rem !important;
     }
 
-    .game-ended #results-list {
-        font-size: 0.8rem !important;
-    }
-}
-
-/* Extra small screens */
-@media screen and (max-width: 380px) {
-    .ctrl-btn {
-        padding: 6px 10px !important;
-        font-size: 0.65rem !important;
+    .close-btn {
+        width: 32px !important;
+        height: 32px !important;
     }
 
-    .card {
-        width: 48px !important;
-        height: 72px !important;
-        margin-left: -12px !important;
+    .sort-toggle-btn {
+        padding: 8px 14px !important;
+        font-size: 0.75rem !important;
     }
 
-    .card .suit-main {
-        font-size: 1.5rem !important;
+    .discard-card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)) !important;
+        gap: 6px !important;
     }
 
-    .hand-area {
-        height: 90px !important;
+    .discard-card-grid .card {
+        width: 50px !important;
+        height: 75px !important;
     }
 }
